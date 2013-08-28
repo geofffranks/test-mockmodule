@@ -1,6 +1,8 @@
 #!/usr/bin/perl -w
 use strict;
 use Test::More tests => 41;
+use FindBin '$Bin';
+use lib "$Bin/lib";
 
 require_ok('Test::MockModule');
 
@@ -23,59 +25,57 @@ like($@, qr/Invalid package name/, ' ... croaks if package is undefined');
 
 {
     {
-        Test::MockModule->new('CGI', no_auto => 1);
-        ok(!$INC{'CGI.pm'}, '... no_auto prevents module being loaded');
+        Test::MockModule->new('ExampleModule', no_auto => 1);
+        ok(!$INC{'ExampleModule.pm'}, '... no_auto prevents module being loaded');
     }
 
-    my $mcgi = Test::MockModule->new('CGI');
-    ok($INC{'CGI.pm'}, '... module loaded if !$VERSION');
+    my $mcgi = Test::MockModule->new('ExampleModule');
+    ok($INC{'ExampleModule.pm'}, '... module loaded if !$VERSION');
     ok($mcgi->isa('Test::MockModule'), '... returns a Test::MockModule object');
-    my $mcgi2 = Test::MockModule->new('CGI');
+    my $mcgi2 = Test::MockModule->new('ExampleModule');
     is($mcgi, $mcgi2,
        "... returns existing object if there's already one for the package");
 
     # get_package()
     ok($mcgi->can('get_package'), 'get_package');
-    is($mcgi->get_package, 'CGI', '... returns the package name');
+    is($mcgi->get_package, 'ExampleModule', '... returns the package name');
 
     # mock()
-    # prime CGI routines
-    CGI->Vars; CGI->param;
-
+    
     ok($mcgi->can('mock'), 'mock()');
     eval {$mcgi->mock(q[p-ram])};
 
     like($@, qr/Invalid subroutine name: /,
         '... dies if a subroutine name is invalid');
 
-    my $orig_param = \&CGI::param;
+    my $orig_param = \&ExampleModule::param;
     $mcgi->mock('param', sub {return qw(abc def)});
-    my @params = CGI::param();
+    my @params = ExampleModule::param();
     is_deeply(\@params, ['abc', 'def'],
         '... replaces the subroutine with a mocked sub');
 
     $mcgi->mock('param' => undef);
-    @params = CGI::param();
+    @params = ExampleModule::param();
     is_deeply(\@params, [], '... which is an empty sub if !defined');
 
     $mcgi->mock(param => 'The quick brown fox jumped over the lazy dog');
-    my $a2z = CGI::param();
+    my $a2z = ExampleModule::param();
     is($a2z, 'The quick brown fox jumped over the lazy dog',
        '... or a subroutine returning the supplied value');
 
     my $ref = [1,2,3];
     $mcgi->mock(param => $ref);
-    @params = CGI::param();
+    @params = ExampleModule::param();
     is($params[0], $ref,
        '... given a reference, install a sub that returns said reference');
 
     my $blessed_code = bless sub { return 'Hello World' }, 'FOO';
     $mcgi->mock(param => $blessed_code);
-    @params = CGI::param();
+    @params = ExampleModule::param();
     is($params[0], 'Hello World', '... a blessed coderef is properly detected');
 
     $mcgi->mock(Just => 'another', Perl => 'Hacker');
-    @params = (CGI::Just(), CGI::Perl());
+    @params = (ExampleModule::Just(), ExampleModule::Perl());
     is_deeply(\@params, ['another', 'Hacker'],
               '... can mock multiple subroutines at a time');
 
@@ -100,27 +100,27 @@ like($@, qr/Invalid package name/, ' ... croaks if package is undefined');
     like($warn, qr/ was not mocked/, "... warns if a subroutine isn't mocked");
 
     $mcgi->unmock('param');
-    is(\&{"CGI::param"}, $orig_param, '... restores the original subroutine');
+    is(\&{"ExampleModule::param"}, $orig_param, '... restores the original subroutine');
 
     # unmock_all()
     ok($mcgi->can('unmock_all'), 'unmock_all');
     $mcgi->mock('Vars' => sub {1}, param => sub {2});
-    ok(CGI::Vars() == 1 && CGI::param() == 2,
+    ok(ExampleModule::Vars() == 1 && ExampleModule::param() == 2,
        'mock: can mock multiple subroutines');
     my @orig = ($mcgi->original('Vars'), $mcgi->original('param'));
     $mcgi->unmock_all();
-    ok(\&CGI::Vars eq $orig[0] && \&CGI::param eq $orig[1],
+    ok(\&ExampleModule::Vars eq $orig[0] && \&ExampleModule::param eq $orig[1],
        '... removes all mocked subroutines');
 
     # is_mocked()
     ok($mcgi->can('is_mocked'), 'is_mocked');
     ok(!$mcgi->is_mocked('param'), '... returns false for non-mocked sub');
     $mcgi->mock('param', sub { return 'This sub is mocked' });
-    is(CGI::param(), 'This sub is mocked', '... mocked params');
+    is(ExampleModule::param(), 'This sub is mocked', '... mocked params');
     ok($mcgi->is_mocked('param'), '... returns true for non-mocked sub');
 }
 
-isnt(CGI::param(), 'This sub is mocked',
+isnt(ExampleModule::param(), 'This sub is mocked',
      '... params is unmocked when object goes out of scope');
 
 # test inherited methods
