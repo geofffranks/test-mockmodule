@@ -223,8 +223,20 @@ The following statements are equivalent:
     $module->mock(purge => 'purged');
     $module->mock(purge => sub { return 'purged'});
 
+When dealing with references, things behave slightly differently. The following
+statements are B<NOT> equivalent:
+
+    # Returns the same arrayref each time, with the localtime() at time of mocking
     $module->mock(updated => [localtime()]);
+    # Returns a new arrayref each time, with up-to-date localtime() value
     $module->mock(updated => sub { return [localtime()]});
+
+The following statements are in fact equivalent:
+
+    my $array_ref = [localtime()]
+    $module->mock(updated => $array_ref)
+    $module->mock(updated => sub { return $array_ref });
+
 
 However, C<undef> is a special case. If you mock a subroutine with C<undef> it
 will install an empty subroutine
