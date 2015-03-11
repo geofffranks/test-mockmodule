@@ -1,6 +1,11 @@
 Revision history for Test::MockModule
 $Id: Changes,v 1.5 2005/03/24 22:23:38 simonflack Exp $
 
+v0.06 2015-03-07
+    - unmock() on inherited subroutines will dispatch to the parent module,
+      rather than replace the local subroutine with the parent's subroutine
+      from the time of mocking (RT77439)
+
 v0.05 2004-03-24
     - unmock() accepts a list of subroutines to unmock. Thanks to David Wheeler
       for the suggestion and patch

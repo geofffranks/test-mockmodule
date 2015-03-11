@@ -4,7 +4,8 @@ use strict qw/subs vars/;
 use vars qw/$VERSION/;
 use Scalar::Util qw/reftype weaken/;
 use Carp;
-$VERSION = '0.05';#sprintf'%d.%02d', q$Revision: 1.7 $ =~ /: (\d+)\.(\d+)/;
+use SUPER;
+$VERSION = '0.06';
 
 my %mocked;
 sub new {
@@ -63,8 +64,11 @@ sub mock {
         if (!$self->{_mocked}{$name}) {
             TRACE("Storing existing $sub_name");
             $self->{_mocked}{$name} = 1;
-            $self->{_orig}{$name}   = defined &{$sub_name} ? \&$sub_name
-                : $self->{_package}->can($name);
+            if (defined &{$sub_name}) {
+                $self->{_orig}{$name} = \&$sub_name;
+            } else {
+                $self->{_orig}{$name} = undef;
+            }
         }
         TRACE("Installing mocked $sub_name");
         _replace_sub($sub_name, $code);
@@ -76,9 +80,8 @@ sub original {
     my ($name) = @_;
     return carp _full_name($self, $name) . " is not mocked"
             unless $self->{_mocked}{$name};
-    return $self->{_orig}{$name};
+    return defined $self->{_orig}{$name} ? $self->{_orig}{$name} : $self->{_package}->super($name);
 }
-
 sub unmock {
     my $self = shift;
 
@@ -275,9 +278,11 @@ L<Test::MockObject::Extends>
 
 L<Sub::Override>
 
-=head1 AUTHOR
+=head1 AUTHORS
 
-Simon Flack E<lt>simonflk _AT_ cpan.orgE<gt>
+Current Maintainer: Geoff Franks <gfranks@cpan.org>
+
+Original Author: Simon Flack E<lt>simonflk _AT_ cpan.orgE<gt>
 
 =head1 COPYRIGHT
 
