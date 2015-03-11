@@ -1,10 +1,12 @@
 #!/usr/bin/perl -w
 use strict;
-use Test::More tests => 41;
-use FindBin '$Bin';
-use lib "$Bin/lib";
+use Test::More;
 
-require_ok('Test::MockModule');
+use lib "t/lib";
+
+BEGIN {
+	use_ok('Test::MockModule') or BAIL_OUT "Could not load Test::MockModule. Giving up";
+}
 
 package Test_Package;
 our $VERSION=1;
@@ -147,3 +149,5 @@ $test_mock->unmock('ISA');
 ok(!Test_Child->can('ISA') && $Test_Child::ISA[0] eq 'Test_Parent',
    "restoring an undefined sub doesn't clear out the rest of the symbols");
 
+
+done_testing;
