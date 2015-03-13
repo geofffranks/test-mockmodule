@@ -1,6 +1,5 @@
 #!/usr/bin/perl
 
-use 5.10.0;
 use Test::MockModule;
 use Test::More;
 
