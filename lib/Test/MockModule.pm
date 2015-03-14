@@ -5,156 +5,156 @@ use vars qw/$VERSION/;
 use Scalar::Util qw/reftype weaken/;
 use Carp;
 use SUPER;
-$VERSION = '0.07';
+$VERSION = '0.08';
 
 my %mocked;
 sub new {
-    my $class = shift;
-    my ($package, %args) = @_;
-    if ($package && (my $existing = $mocked{$package})) {
-        return $existing;
-    }
+	my $class = shift;
+	my ($package, %args) = @_;
+	if ($package && (my $existing = $mocked{$package})) {
+		return $existing;
+	}
 
-    croak "Cannot mock $package" if $package && $package eq $class;
-    unless (_valid_package($package)) {
-        $package = 'undef' unless defined $package;
-        croak "Invalid package name $package";
-    }
+	croak "Cannot mock $package" if $package && $package eq $class;
+	unless (_valid_package($package)) {
+		$package = 'undef' unless defined $package;
+		croak "Invalid package name $package";
+	}
 
-    unless ($args{no_auto} || ${"$package\::VERSION"}) {
-        (my $load_package = "$package.pm") =~ s{::}{/}g;
-        TRACE("$package is empty, loading $load_package");
-        require $load_package;
-    }
+	unless ($args{no_auto} || ${"$package\::VERSION"}) {
+		(my $load_package = "$package.pm") =~ s{::}{/}g;
+		TRACE("$package is empty, loading $load_package");
+		require $load_package;
+	}
 
-    TRACE("Creating MockModule object for $package");
-    my $self = bless {
-        _package => $package,
-        _mocked  => {},
-    }, $class;
-    $mocked{$package} = $self;
-    weaken $mocked{$package};
-    return $self;
+	TRACE("Creating MockModule object for $package");
+	my $self = bless {
+		_package => $package,
+		_mocked  => {},
+	}, $class;
+	$mocked{$package} = $self;
+	weaken $mocked{$package};
+	return $self;
 }
 
 sub DESTROY {
-    my $self = shift;
-    $self->unmock_all;
+	my $self = shift;
+	$self->unmock_all;
 }
 
 sub get_package {
-    my $self = shift;
-    return $self->{_package};
+	my $self = shift;
+	return $self->{_package};
 }
 
 sub mock {
-    my $self = shift;
+	my $self = shift;
 
-    while (my ($name, $value) = splice @_, 0, 2) {
-        my $code = sub { };
-        if (ref $value && reftype $value eq 'CODE') {
-            $code = $value;
-        } elsif (defined $value) {
-            $code = sub {$value};
-        }
+	while (my ($name, $value) = splice @_, 0, 2) {
+		my $code = sub { };
+		if (ref $value && reftype $value eq 'CODE') {
+			$code = $value;
+		} elsif (defined $value) {
+			$code = sub {$value};
+		}
 
-        TRACE("$name: $code");
-        croak "Invalid subroutine name: $name" unless _valid_subname($name);
-        my $sub_name = _full_name($self, $name);
-        if (!$self->{_mocked}{$name}) {
-            TRACE("Storing existing $sub_name");
-            $self->{_mocked}{$name} = 1;
-            if (defined &{$sub_name}) {
-                $self->{_orig}{$name} = \&$sub_name;
-            } else {
-                $self->{_orig}{$name} = undef;
-            }
-        }
-        TRACE("Installing mocked $sub_name");
-        _replace_sub($sub_name, $code);
-    }
+		TRACE("$name: $code");
+		croak "Invalid subroutine name: $name" unless _valid_subname($name);
+		my $sub_name = _full_name($self, $name);
+		if (!$self->{_mocked}{$name}) {
+			TRACE("Storing existing $sub_name");
+			$self->{_mocked}{$name} = 1;
+			if (defined &{$sub_name}) {
+				$self->{_orig}{$name} = \&$sub_name;
+			} else {
+				$self->{_orig}{$name} = undef;
+			}
+		}
+		TRACE("Installing mocked $sub_name");
+		_replace_sub($sub_name, $code);
+	}
 }
 
 sub original {
-    my $self = shift;
-    my ($name) = @_;
-    return carp _full_name($self, $name) . " is not mocked"
-            unless $self->{_mocked}{$name};
-    return defined $self->{_orig}{$name} ? $self->{_orig}{$name} : $self->{_package}->super($name);
+	my $self = shift;
+	my ($name) = @_;
+	return carp _full_name($self, $name) . " is not mocked"
+		unless $self->{_mocked}{$name};
+	return defined $self->{_orig}{$name} ? $self->{_orig}{$name} : $self->{_package}->super($name);
 }
 sub unmock {
-    my $self = shift;
+	my $self = shift;
 
-    for my $name (@_) {
-        croak "Invalid subroutine name: $name" unless _valid_subname($name);
+	for my $name (@_) {
+		croak "Invalid subroutine name: $name" unless _valid_subname($name);
 
-        my $sub_name = _full_name($self, $name);
-        unless ($self->{_mocked}{$name}) {
-            carp $sub_name . " was not mocked";
-            next;
-        }
+		my $sub_name = _full_name($self, $name);
+		unless ($self->{_mocked}{$name}) {
+			carp $sub_name . " was not mocked";
+			next;
+		}
 
-        TRACE("Restoring original $sub_name");
-        _replace_sub($sub_name, $self->{_orig}{$name});
-        delete $self->{_mocked}{$name};
-        delete $self->{_orig}{$name};
-    }
-    return $self;
+		TRACE("Restoring original $sub_name");
+		_replace_sub($sub_name, $self->{_orig}{$name});
+		delete $self->{_mocked}{$name};
+		delete $self->{_orig}{$name};
+	}
+	return $self;
 }
 
 sub unmock_all {
-    my $self = shift;
-    foreach (keys %{$self->{_mocked}}) {
-        $self->unmock($_);
-    }
+	my $self = shift;
+	foreach (keys %{$self->{_mocked}}) {
+		$self->unmock($_);
+	}
 }
 
 sub is_mocked {
-    my $self = shift;
-    my ($name) = shift;
-    return $self->{_mocked}{$name};
+	my $self = shift;
+	my ($name) = shift;
+	return $self->{_mocked}{$name};
 }
 
 sub _full_name {
-    my ($self, $sub_name) = @_;
-    sprintf "%s::%s", $self->{_package}, $sub_name;
+	my ($self, $sub_name) = @_;
+	sprintf "%s::%s", $self->{_package}, $sub_name;
 }
 
 sub _valid_package {
-    defined($_[0]) && $_[0] =~ /^[a-z_]\w*(?:::\w+)*$/i;
+	defined($_[0]) && $_[0] =~ /^[a-z_]\w*(?:::\w+)*$/i;
 }
 
 sub _valid_subname {
-    $_[0] =~ /^[a-z_]\w*$/i;
+	$_[0] =~ /^[a-z_]\w*$/i;
 }
 
 sub _replace_sub {
-    my ($sub_name, $coderef) = @_;
-    # from Test::MockObject
-    local $SIG{__WARN__} = sub { warn $_[0] unless $_[0] =~ /redefined/ };
-    if (defined $coderef) {
-        *{$sub_name} = $coderef;
-    } else {
-        TRACE("removing subroutine: $sub_name");
-        my ($package, $sub) = $sub_name =~ /(.*::)(.*)/;
-        my %symbols = %{$package};
+	my ($sub_name, $coderef) = @_;
+	# from Test::MockObject
+	local $SIG{__WARN__} = sub { warn $_[0] unless $_[0] =~ /redefined/ };
+	if (defined $coderef) {
+		*{$sub_name} = $coderef;
+	} else {
+		TRACE("removing subroutine: $sub_name");
+		my ($package, $sub) = $sub_name =~ /(.*::)(.*)/;
+		my %symbols = %{$package};
 
-        # save a copy of all non-code slots
-        my %slot;
-        foreach (qw(ARRAY FORMAT HASH IO SCALAR)) {
-            next unless defined(my $elem = *{$symbols{$sub}}{$_});
-            $slot{$_} = $elem;
-        }
+		# save a copy of all non-code slots
+		my %slot;
+		foreach (qw(ARRAY FORMAT HASH IO SCALAR)) {
+			next unless defined(my $elem = *{$symbols{$sub}}{$_});
+			$slot{$_} = $elem;
+		}
 
-        # clear the symbol table entry for the subroutine
-        undef *$sub_name;
+		# clear the symbol table entry for the subroutine
+		undef *$sub_name;
 
-        # restore everything except the code slot
-        return unless keys %slot;
-        foreach (keys %slot) {
-            *$sub_name = $slot{$_};
-        }
-    }
+		# restore everything except the code slot
+		return unless keys %slot;
+		foreach (keys %slot) {
+			*$sub_name = $slot{$_};
+		}
+	}
 }
 
 # Log::Trace stubs
@@ -171,27 +171,27 @@ Test::MockModule - Override subroutines in a module for unit testing
 
 =head1 SYNOPSIS
 
-   use Module::Name;
-   use Test::MockModule;
+	use Module::Name;
+	use Test::MockModule;
 
-   {
-       my $module = new Test::MockModule('Module::Name');
-       $module->mock('subroutine', sub { ... });
-       Module::Name::subroutine(@args); # mocked
-   }
+	{
+		my $module = new Test::MockModule('Module::Name');
+		$module->mock('subroutine', sub { ... });
+		Module::Name::subroutine(@args); # mocked
+	}
 
-   Module::Name::subroutine(@args); # original subroutine
+	Module::Name::subroutine(@args); # original subroutine
 
-   # Working with objects
-   use Foo;
-   use Test::MockModule;
-   {
-       my $mock = Test::MockModule('Foo');
-       $mock->mock(foo => sub { print "Foo!\n"; });
+	# Working with objects
+	use Foo;
+	use Test::MockModule;
+	{
+		my $mock = Test::MockModule('Foo');
+		$mock->mock(foo => sub { print "Foo!\n"; });
 
-       my $foo = Foo->new();
-       $foo->foo(); # prints "Foo!\n"
-   }
+		my $foo = Foo->new();
+		$foo->foo(); # prints "Foo!\n"
+	}
 
 =head1 DESCRIPTION
 
@@ -215,7 +215,7 @@ If there is no C<$VERSION> defined in C<$package>, the module will be
 automatically loaded. You can override this behaviour by setting the C<no_auto>
 option:
 
-    my $mock = new Test::MockModule('Module::Name', no_auto => 1);
+	my $mock = new Test::MockModule('Module::Name', no_auto => 1);
 
 =item get_package()
 
@@ -234,33 +234,33 @@ subroutine that returns the scalar.
 
 The following statements are equivalent:
 
-    $module->mock(purge => 'purged');
-    $module->mock(purge => sub { return 'purged'});
+	$module->mock(purge => 'purged');
+	$module->mock(purge => sub { return 'purged'});
 
 When dealing with references, things behave slightly differently. The following
 statements are B<NOT> equivalent:
 
-    # Returns the same arrayref each time, with the localtime() at time of mocking
-    $module->mock(updated => [localtime()]);
-    # Returns a new arrayref each time, with up-to-date localtime() value
-    $module->mock(updated => sub { return [localtime()]});
+	# Returns the same arrayref each time, with the localtime() at time of mocking
+	$module->mock(updated => [localtime()]);
+	# Returns a new arrayref each time, with up-to-date localtime() value
+	$module->mock(updated => sub { return [localtime()]});
 
 The following statements are in fact equivalent:
 
-    my $array_ref = [localtime()]
-    $module->mock(updated => $array_ref)
-    $module->mock(updated => sub { return $array_ref });
+	my $array_ref = [localtime()]
+	$module->mock(updated => $array_ref)
+	$module->mock(updated => sub { return $array_ref });
 
 
 However, C<undef> is a special case. If you mock a subroutine with C<undef> it
 will install an empty subroutine
 
-    $module->mock(purge => undef);
-    $module->mock(purge => sub { });
+	$module->mock(purge => undef);
+	$module->mock(purge => sub { });
 
 rather than a subroutine that returns C<undef>:
 
-    $module->mock(purge => sub { undef });
+	$module->mock(purge => sub { undef });
 
 You can call C<mock()> for the same subroutine many times, but when you call
 C<unmock()>, the original subroutine is restored (not the last mocked

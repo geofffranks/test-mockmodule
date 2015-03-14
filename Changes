@@ -1,6 +1,12 @@
 Revision history for Test::MockModule
 $Id: Changes,v 1.5 2005/03/24 22:23:38 simonflack Exp $
 
+v0.08 2015-03-14
+    - Updated README with correct instructions now that we use Build.PL
+
+v0.07 2015-03-14
+    - Updated docs for more clarity when handling objects of mocked classes.
+
 v0.06 2015-03-07
     - unmock() on inherited subroutines will dispatch to the parent module,
       rather than replace the local subroutine with the parent's subroutine

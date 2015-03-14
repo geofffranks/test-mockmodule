@@ -11,8 +11,8 @@ BEGIN {
 package Test_Package;
 our $VERSION=1;
 sub listify {
-    my ($lower, $upper) = @_;
-    return ($lower .. $upper);
+	my ($lower, $upper) = @_;
+	return ($lower .. $upper);
 }
 package main;
 
@@ -26,104 +26,104 @@ eval {Test::MockModule->new()};
 like($@, qr/Invalid package name/, ' ... croaks if package is undefined');
 
 {
-    {
-        Test::MockModule->new('ExampleModule', no_auto => 1);
-        ok(!$INC{'ExampleModule.pm'}, '... no_auto prevents module being loaded');
-    }
+	{
+		Test::MockModule->new('ExampleModule', no_auto => 1);
+		ok(!$INC{'ExampleModule.pm'}, '... no_auto prevents module being loaded');
+	}
 
-    my $mcgi = Test::MockModule->new('ExampleModule');
-    ok($INC{'ExampleModule.pm'}, '... module loaded if !$VERSION');
-    ok($mcgi->isa('Test::MockModule'), '... returns a Test::MockModule object');
-    my $mcgi2 = Test::MockModule->new('ExampleModule');
-    is($mcgi, $mcgi2,
-       "... returns existing object if there's already one for the package");
+	my $mcgi = Test::MockModule->new('ExampleModule');
+	ok($INC{'ExampleModule.pm'}, '... module loaded if !$VERSION');
+	ok($mcgi->isa('Test::MockModule'), '... returns a Test::MockModule object');
+	my $mcgi2 = Test::MockModule->new('ExampleModule');
+	is($mcgi, $mcgi2,
+		"... returns existing object if there's already one for the package");
 
-    # get_package()
-    ok($mcgi->can('get_package'), 'get_package');
-    is($mcgi->get_package, 'ExampleModule', '... returns the package name');
+	# get_package()
+	ok($mcgi->can('get_package'), 'get_package');
+	is($mcgi->get_package, 'ExampleModule', '... returns the package name');
 
-    # mock()
-    
-    ok($mcgi->can('mock'), 'mock()');
-    eval {$mcgi->mock(q[p-ram])};
+	# mock()
 
-    like($@, qr/Invalid subroutine name: /,
-        '... dies if a subroutine name is invalid');
+	ok($mcgi->can('mock'), 'mock()');
+	eval {$mcgi->mock(q[p-ram])};
 
-    my $orig_param = \&ExampleModule::param;
-    $mcgi->mock('param', sub {return qw(abc def)});
-    my @params = ExampleModule::param();
-    is_deeply(\@params, ['abc', 'def'],
-        '... replaces the subroutine with a mocked sub');
+	like($@, qr/Invalid subroutine name: /,
+		'... dies if a subroutine name is invalid');
 
-    $mcgi->mock('param' => undef);
-    @params = ExampleModule::param();
-    is_deeply(\@params, [], '... which is an empty sub if !defined');
+	my $orig_param = \&ExampleModule::param;
+	$mcgi->mock('param', sub {return qw(abc def)});
+	my @params = ExampleModule::param();
+	is_deeply(\@params, ['abc', 'def'],
+		'... replaces the subroutine with a mocked sub');
 
-    $mcgi->mock(param => 'The quick brown fox jumped over the lazy dog');
-    my $a2z = ExampleModule::param();
-    is($a2z, 'The quick brown fox jumped over the lazy dog',
-       '... or a subroutine returning the supplied value');
+	$mcgi->mock('param' => undef);
+	@params = ExampleModule::param();
+	is_deeply(\@params, [], '... which is an empty sub if !defined');
 
-    my $ref = [1,2,3];
-    $mcgi->mock(param => $ref);
-    @params = ExampleModule::param();
-    is($params[0], $ref,
-       '... given a reference, install a sub that returns said reference');
+	$mcgi->mock(param => 'The quick brown fox jumped over the lazy dog');
+	my $a2z = ExampleModule::param();
+	is($a2z, 'The quick brown fox jumped over the lazy dog',
+		'... or a subroutine returning the supplied value');
 
-    my $blessed_code = bless sub { return 'Hello World' }, 'FOO';
-    $mcgi->mock(param => $blessed_code);
-    @params = ExampleModule::param();
-    is($params[0], 'Hello World', '... a blessed coderef is properly detected');
+	my $ref = [1,2,3];
+	$mcgi->mock(param => $ref);
+	@params = ExampleModule::param();
+	is($params[0], $ref,
+		'... given a reference, install a sub that returns said reference');
 
-    $mcgi->mock(Just => 'another', Perl => 'Hacker');
-    @params = (ExampleModule::Just(), ExampleModule::Perl());
-    is_deeply(\@params, ['another', 'Hacker'],
-              '... can mock multiple subroutines at a time');
+	my $blessed_code = bless sub { return 'Hello World' }, 'FOO';
+	$mcgi->mock(param => $blessed_code);
+	@params = ExampleModule::param();
+	is($params[0], 'Hello World', '... a blessed coderef is properly detected');
+
+	$mcgi->mock(Just => 'another', Perl => 'Hacker');
+	@params = (ExampleModule::Just(), ExampleModule::Perl());
+	is_deeply(\@params, ['another', 'Hacker'],
+		'... can mock multiple subroutines at a time');
 
 
-    # original()
-    ok($mcgi->can('original'), 'original()');
-    is($mcgi->original('param'), $orig_param,
-       '... returns the original subroutine');
-    my ($warn);
-    local $SIG{__WARN__} = sub {$warn = shift};
-    $mcgi->original('Vars');
-    like($warn, qr/ is not mocked/, "... warns if a subroutine isn't mocked");
+	# original()
+	ok($mcgi->can('original'), 'original()');
+	is($mcgi->original('param'), $orig_param,
+		'... returns the original subroutine');
+	my ($warn);
+	local $SIG{__WARN__} = sub {$warn = shift};
+	$mcgi->original('Vars');
+	like($warn, qr/ is not mocked/, "... warns if a subroutine isn't mocked");
 
-    # unmock()
-    ok($mcgi->can('unmock'), 'unmock()');
-    eval {$mcgi->unmock('V@rs')};
-    like($@, qr/Invalid subroutine name/,
-         '... dies if the subroutine is invalid');
+	# unmock()
+	ok($mcgi->can('unmock'), 'unmock()');
+	eval {$mcgi->unmock('V@rs')};
+	like($@, qr/Invalid subroutine name/,
+		'... dies if the subroutine is invalid');
 
-    $warn = '';
-    $mcgi->unmock('Vars');
-    like($warn, qr/ was not mocked/, "... warns if a subroutine isn't mocked");
+	$warn = '';
+	$mcgi->unmock('Vars');
+	like($warn, qr/ was not mocked/, "... warns if a subroutine isn't mocked");
 
-    $mcgi->unmock('param');
-    is(\&{"ExampleModule::param"}, $orig_param, '... restores the original subroutine');
+	$mcgi->unmock('param');
+	is(\&{"ExampleModule::param"}, $orig_param, '... restores the original subroutine');
 
-    # unmock_all()
-    ok($mcgi->can('unmock_all'), 'unmock_all');
-    $mcgi->mock('Vars' => sub {1}, param => sub {2});
-    ok(ExampleModule::Vars() == 1 && ExampleModule::param() == 2,
-       'mock: can mock multiple subroutines');
-    my @orig = ($mcgi->original('Vars'), $mcgi->original('param'));
-    $mcgi->unmock_all();
-    ok(\&ExampleModule::Vars eq $orig[0] && \&ExampleModule::param eq $orig[1],
-       '... removes all mocked subroutines');
+	# unmock_all()
+	ok($mcgi->can('unmock_all'), 'unmock_all');
+	$mcgi->mock('Vars' => sub {1}, param => sub {2});
+	ok(ExampleModule::Vars() == 1 && ExampleModule::param() == 2,
+		'mock: can mock multiple subroutines');
+	my @orig = ($mcgi->original('Vars'), $mcgi->original('param'));
+	$mcgi->unmock_all();
+	ok(\&ExampleModule::Vars eq $orig[0] && \&ExampleModule::param eq $orig[1],
+		'... removes all mocked subroutines');
 
-    # is_mocked()
-    ok($mcgi->can('is_mocked'), 'is_mocked');
-    ok(!$mcgi->is_mocked('param'), '... returns false for non-mocked sub');
-    $mcgi->mock('param', sub { return 'This sub is mocked' });
-    is(ExampleModule::param(), 'This sub is mocked', '... mocked params');
-    ok($mcgi->is_mocked('param'), '... returns true for non-mocked sub');
+	# is_mocked()
+	ok($mcgi->can('is_mocked'), 'is_mocked');
+	ok(!$mcgi->is_mocked('param'), '... returns false for non-mocked sub');
+	$mcgi->mock('param', sub { return 'This sub is mocked' });
+	is(ExampleModule::param(), 'This sub is mocked', '... mocked params');
+	ok($mcgi->is_mocked('param'), '... returns true for non-mocked sub');
 }
 
 isnt(ExampleModule::param(), 'This sub is mocked',
-     '... params is unmocked when object goes out of scope');
+	'... params is unmocked when object goes out of scope');
 
 # test inherited methods
 package Test_Parent;
@@ -144,10 +144,9 @@ is(Test_Child->method, 1, 'mocked subclass method');
 $test_mock->mock(ISA => sub {'basic test'});
 can_ok(Test_Child => 'ISA');
 is(Test_Child::ISA(), 'basic test',
-   "testing a mocked sub that didn't exist before");
+	"testing a mocked sub that didn't exist before");
 $test_mock->unmock('ISA');
 ok(!Test_Child->can('ISA') && $Test_Child::ISA[0] eq 'Test_Parent',
-   "restoring an undefined sub doesn't clear out the rest of the symbols");
-
+	"restoring an undefined sub doesn't clear out the rest of the symbols");
 
 done_testing;
