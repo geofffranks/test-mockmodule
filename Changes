@@ -1,6 +1,9 @@
 Revision history for Test::MockModule
 $Id: Changes,v 1.5 2005/03/24 22:23:38 simonflack Exp $
 
+v0.08 2015-03-15
+    - Ensure LICENSE autogenerates for distribution, fixed license issues in Build.PL
+
 v0.08 2015-03-14
     - Updated README with correct instructions now that we use Build.PL
 
