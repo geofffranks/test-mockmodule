@@ -5,7 +5,7 @@ use vars qw/$VERSION/;
 use Scalar::Util qw/reftype weaken/;
 use Carp;
 use SUPER;
-$VERSION = '0.09';
+$VERSION = '0.10';
 
 my %mocked;
 sub new {
@@ -265,6 +265,53 @@ rather than a subroutine that returns C<undef>:
 You can call C<mock()> for the same subroutine many times, but when you call
 C<unmock()>, the original subroutine is restored (not the last mocked
 instance).
+
+B<MOCKING + EXPORT>
+
+If you are trying to mock a subroutine exported from another module, this may
+not behave as you initialy would expect, since Test::MockModule is only mocking
+at the target module, not anything importing that module. If you mock the local
+package, or use a fully qualified function name, you will get the behavior you
+desire:
+
+	use Test::MockModule;
+	use Test::More;
+	use POSIX qw/strftime/;
+
+	my $posix = Test::MockModule->new("POSIX");
+
+	$posix->mock("strftime", "Yesterday");
+	is strftime("%D", localtime(time)), "Yesterday", "`strftime` was mocked successfully"; # Fails
+	is POSIX::strftime("%D", localtime(time)), "Yesterday", "`strftime` was mocked successfully"; # Succeeds
+
+	my $main = Test::MockModule->new("main", no_auto => 1);
+	$main->mock("strftime", "today");
+	is strftime("%D", localtime(time)), "today", "`strftime` was mocked successfully"; # Succeeds
+
+If you are trying to mock a subroutine that was exported into a module that you're
+trying to test, rather than mocking the subroutine in its originating module,
+you can instead mock it in the module you are testing:
+
+	package MyModule;
+	use POSIX qw/strftime/;
+
+	sub minus_twentyfour
+	{
+		return strftime("%a, %b %d, %Y", localtime(time - 86400));
+	}
+
+	package main;
+	use Test::More;
+	use Test::MockModule;
+
+	my $posix = Test::MockModule->new("POSIX");
+	$posix->mock("strftime", "Yesterday");
+
+	is MyModule::minus_twentyfour(), "Yesterday", "`minus-tewntyfour` got mocked"; # fails
+
+	my $mymodule = Test::MockModule->new("MyModule", no_auto => 1);
+	$mymodule->mock("strftime", "Yesterday");
+	is MyModule::minus_twentyfour(), "Yesterday", "`minus-tewntyfour` got mocked"; # suceeds
 
 =item original($subroutine)
 
