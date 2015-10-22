@@ -14,4 +14,8 @@ Run these commands in the source directory:
 
 Then delete the source directory tree since it's no longer needed.
 
+Alternatively, you can simply install the module via cpanm:
+
+    cpanm Test::MockModule
+
 Run 'perldoc Test::MockModule' to read the full documentation.
