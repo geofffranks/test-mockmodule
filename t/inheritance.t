@@ -13,7 +13,7 @@ is(Bar->motto(), "Foo!", "pre-mock: Bar inherit's Foo's motto");
 is(Baz->motto(), "Foo!", "pre-mock: Baz inherit's Bar's inheritance of Foo's motto");
 
 {
-	my $mock_bar = new Test::MockModule('Bar', no_auto => 1);
+	my $mock_bar = Test::MockModule->new('Bar', no_auto => 1);
 	$mock_bar->mock('motto', sub { 'Bar!' });
 	is(Foo->motto(), "Foo!", "Foo motto is unchanged post-Bar mock");
 	is(Bar->motto(), "Bar!", "Bar motto has been mocked");
@@ -21,7 +21,7 @@ is(Baz->motto(), "Foo!", "pre-mock: Baz inherit's Bar's inheritance of Foo's mot
 	is($mock_bar->original("motto")->(), "Foo!", "Bar's original function can still be reached correctly");
 	ok($mock_bar->is_mocked("motto"), "Baz's motto is really mocked");
 
-	my $mock_baz = new Test::MockModule('Baz', no_auto => 1);
+	my $mock_baz = Test::MockModule->new('Baz', no_auto => 1);
 	$mock_baz->mock('motto', sub { 'Baz!' });
 	is(Foo->motto(), "Foo!", "Foo motto is unchanged post-Baz mock");
 	is(Bar->motto(), "Bar!", "Bar motto is unchanged post-Baz mock");
