@@ -1,17 +1,17 @@
 Test::MockModule - mock subroutines in a module
 
 See the LICENSE section in lib/Test/MockModule.pm for usage and distribution
-rights
+rights.
 
 QUICK START:
 
-commands in the source directory:
+Run these commands in the source directory:
 
     perl Build.PL
     ./Build
     ./Build test
     ./Build install
-    Then delete the source directory tree since it's no longer needed.
 
-    run 'perldoc Test::MockModule' to read the full documentation.
+Then delete the source directory tree since it's no longer needed.
 
+Run 'perldoc Test::MockModule' to read the full documentation.
