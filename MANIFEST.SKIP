@@ -73,3 +73,5 @@
 ^Test-MockModule-*
 ^t/tmp
 
+# Avoid Travis-CI configuration file
+\.travis.yml
