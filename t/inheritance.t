@@ -1,5 +1,3 @@
-#!/usr/bin/perl
-
 use Test::MockModule;
 use Test::More;
 
