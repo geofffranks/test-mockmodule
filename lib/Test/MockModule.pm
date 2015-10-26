@@ -1,4 +1,3 @@
-# $Id: MockModule.pm,v 1.7 2005/03/24 22:23:38 simonflack Exp $
 package Test::MockModule;
 use strict qw/subs vars/;
 use vars qw/$VERSION/;
