@@ -1,3 +1,6 @@
+use warnings;
+use strict;
+
 use Test::MockModule;
 use Test::More;
 
