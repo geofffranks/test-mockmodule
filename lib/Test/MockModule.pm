@@ -185,7 +185,7 @@ Test::MockModule - Override subroutines in a module for unit testing
 	use Foo;
 	use Test::MockModule;
 	{
-		my $mock = Test::MockModule('Foo');
+		my $mock = Test::MockModule->new('Foo');
 		$mock->mock(foo => sub { print "Foo!\n"; });
 
 		my $foo = Foo->new();
