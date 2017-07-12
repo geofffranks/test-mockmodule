@@ -4,7 +4,7 @@ use vars qw/$VERSION/;
 use Scalar::Util qw/reftype weaken/;
 use Carp;
 use SUPER;
-$VERSION = '0.11';
+$VERSION = '0.12';
 
 my %mocked;
 sub new {
