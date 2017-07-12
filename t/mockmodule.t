@@ -125,12 +125,12 @@ like($@, qr/Invalid package name/, ' ... croaks if package is undefined');
 	# noop()
 	is(ExampleModule::cookie(), 'choc-chip', 'cookie does default behaviour');
 	$mcgi->noop('cookie');
-    ok($mcgi->is_mocked('cookie'), 'cookie is mocked using noop');
-    $mcgi->unmock('cookie');
-    $mcgi->unmock('Vars');
-    $mcgi->noop('cookie', 'Vars');
-    is(ExampleModule::cookie(), 1, 'now cookie does nothing');
-    is(ExampleModule::Vars(), 1, 'now Vars does nothing');
+	ok($mcgi->is_mocked('cookie'), 'cookie is mocked using noop');
+	$mcgi->unmock('cookie');
+	$mcgi->unmock('Vars');
+	$mcgi->noop('cookie', 'Vars');
+	is(ExampleModule::cookie(), 1, 'now cookie does nothing');
+	is(ExampleModule::Vars(), 1, 'now Vars does nothing');
 }
 
 isnt(ExampleModule::param(), 'This sub is mocked',
