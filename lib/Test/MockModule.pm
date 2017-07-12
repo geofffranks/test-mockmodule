@@ -74,6 +74,11 @@ sub mock {
 	}
 }
 
+sub noop {
+    my $self = shift;
+    $self->mock($_,1) for @_;
+}
+
 sub original {
 	my $self = shift;
 	my ($name) = @_;
@@ -326,6 +331,14 @@ C<unmock()> in one go.
 Restores all the subroutines in the package that were mocked. This is
 automatically called when all C<Test::MockObject> objects for the given package
 go out of scope.
+
+=item noop($subroutine [, ...])
+
+Given a list of subroutine names, mocks each of them with a no-op subroutine. Handy
+for mocking methods you want to ignore!
+
+    # Neuter a list of methods in one go
+    $module->noop('purge', 'updated');
 
 =back
 
