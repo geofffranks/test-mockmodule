@@ -333,7 +333,7 @@ you can instead mock it in the module you are testing:
 
 	my $mymodule = Test::MockModule->new("MyModule", no_auto => 1);
 	$mymodule->mock("strftime", "Yesterday");
-	is MyModule::minus_twentyfour(), "Yesterday", "`minus-tewntyfour` got mocked"; # suceeds
+	is MyModule::minus_twentyfour(), "Yesterday", "`minus-tewntyfour` got mocked"; # succeeds
 
 =item redefine($subroutine)
 
