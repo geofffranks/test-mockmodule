@@ -1,4 +1,5 @@
 package Test::MockModule;
+use warnings;
 use strict qw/subs vars/;
 use vars qw/$VERSION/;
 use Scalar::Util qw/reftype weaken/;

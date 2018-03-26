@@ -3,6 +3,7 @@ use strict;
 
 use Test::MockModule;
 use Test::More;
+use Test::Warnings;
 
 @Bar::ISA = 'Foo';
 @Baz::ISA = 'Bar';
