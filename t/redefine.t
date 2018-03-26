@@ -2,6 +2,7 @@ use warnings;
 use strict;
 
 use Test::More;
+use Test::Warnings;
 
 use Test::MockModule;
 
