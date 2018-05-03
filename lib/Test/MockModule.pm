@@ -53,6 +53,14 @@ sub redefine {
 	while ( my ($name, $value) = splice @mocks, 0, 2 ) {
 		my $sub_name = $self->_full_name($name);
 		my $coderef = *{$sub_name}{'CODE'};
+		next if 'CODE' eq ref $coderef;
+
+		if ( $sub_name =~ qr{^(.+)::([^:]+)$} ) {
+			my ( $pkg, $sub ) = ( $1, $2 );
+			my $object = bless {}, $pkg;
+			next if $object->can( $sub );
+		}
+
 		if ('CODE' ne ref $coderef) {
 			croak "$sub_name does not exist!";
 		}
@@ -342,6 +350,9 @@ The same behavior as C<mock()>, but this will preemptively check to be
 sure that all passed subroutines actually exist. This is useful to ensure that
 if a mocked module's interface changes the test doesn't just keep on testing a
 code path that no longer behaves consistently with the mocked behavior.
+
+Note that redefine is also now checking if one of the parent provides the sub
+and will not die if it's available in the chain.
 
 =item original($subroutine)
 
