@@ -300,7 +300,7 @@ instance).
 B<MOCKING + EXPORT>
 
 If you are trying to mock a subroutine exported from another module, this may
-not behave as you initialy would expect, since Test::MockModule is only mocking
+not behave as you initially would expect, since Test::MockModule is only mocking
 at the target module, not anything importing that module. If you mock the local
 package, or use a fully qualified function name, you will get the behavior you
 desire:
