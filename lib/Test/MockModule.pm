@@ -358,6 +358,42 @@ and will not die if it's available in the chain.
 
 Returns the original (unmocked) subroutine
 
+Here is a sample how to wrap a function with custom arguments using the original subroutine.
+This is useful when you cannot (do not) want to alter the original code to abstract
+one hardcoded argument pass to a function.
+
+	package MyModule;
+
+	sub sample {
+		return get_path_for("/a/b/c/d");
+	}
+
+	sub get_path_for {
+		... # anything goes there...
+	}
+
+	package main;
+	use Test::MockModule;
+
+	my $mock = Test::MockModule->new("MyModule");
+	# replace all calls to get_path_for using a different argument
+	$mock->redefine("get_path_for", sub {
+		return $mock->original("get_path_for")->("/my/custom/path");
+	});
+
+	# or
+
+	$mock->redefine("get_path_for", sub {
+		my $path = shift;
+		if ( $path && $path eq "/a/b/c/d" ) {
+			# only alter calls with path set to "/a/b/c/d"
+			return $mock->original("get_path_for")->("/my/custom/path");
+		} else { # preserve the original arguments
+			return $mock->original("get_path_for")->(@_);
+		}
+	});
+
+
 =item unmock($subroutine [, ...])
 
 Restores the original C<$subroutine>. You can specify a list of subroutines to
