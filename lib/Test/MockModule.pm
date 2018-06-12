@@ -338,11 +338,11 @@ you can instead mock it in the module you are testing:
 	my $posix = Test::MockModule->new("POSIX");
 	$posix->mock("strftime", "Yesterday");
 
-	is MyModule::minus_twentyfour(), "Yesterday", "`minus-tewntyfour` got mocked"; # fails
+	is MyModule::minus_twentyfour(), "Yesterday", "`minus-twentyfour` got mocked"; # fails
 
 	my $mymodule = Test::MockModule->new("MyModule", no_auto => 1);
 	$mymodule->mock("strftime", "Yesterday");
-	is MyModule::minus_twentyfour(), "Yesterday", "`minus-tewntyfour` got mocked"; # succeeds
+	is MyModule::minus_twentyfour(), "Yesterday", "`minus-twentyfour` got mocked"; # succeeds
 
 =item redefine($subroutine)
 
