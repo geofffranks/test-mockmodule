@@ -157,8 +157,10 @@ sub _valid_subname {
 
 sub _replace_sub {
 	my ($sub_name, $coderef) = @_;
-	# from Test::MockObject
-	local $SIG{__WARN__} = sub { warn $_[0] unless $_[0] =~ /redefined/ };
+
+    no warnings 'redefine';
+    no warnings 'prototype';
+
 	if (defined $coderef) {
 		*{$sub_name} = $coderef;
 	} else {
