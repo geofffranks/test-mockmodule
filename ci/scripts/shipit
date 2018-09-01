@@ -36,9 +36,9 @@ pushd ${REPO_ROOT}
 changes=$(git log --pretty="- %h %s - %an" $(git describe --tags | cut -d - -f1)..HEAD)
 old_changes=$(tail -n +3 Changes)
 cat <<EOF > Changes
-v$(git describe --tags | cut -d - -f1)
 Revision history for Test::MockModule
 
+v${VERSION}
 $changes
 
 $old_changes
