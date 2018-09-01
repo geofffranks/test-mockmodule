@@ -12,7 +12,7 @@ header() {
 
 set -e
 
-#pushd git
+pushd git
 perl Build.PL
 
 header "Running tests..."
