@@ -35,7 +35,7 @@ header "Generating release notes..."
 pushd ${REPO_ROOT}
 changes=$(git log --pretty="- %h %s - %an" $(git describe --tags | cut -d - -f1)..HEAD)
 old_changes=$(cat Changes)
-cat <<EOF >> Changes
+cat <<EOF > Changes
 v$(git describe --tags | cut -d - -f1)
 
 $changes
@@ -66,8 +66,8 @@ mkdir -p ${RELEASE_ROOT}/artifacts
 
 echo "v${VERSION}"                         > ${RELEASE_ROOT}/tag
 echo "v${VERSION}"                         > ${RELEASE_ROOT}/name
-mv ${REPO_ROOT}/releases/*/*-${VERSION}.tgz  ${RELEASE_ROOT}/artifacts
-mv ${REPO_ROOT}/ci/release_notes.md          ${RELEASE_ROOT}/notes.md
+#mv ${REPO_ROOT}/releases/*/*-${VERSION}.tgz  ${RELEASE_ROOT}/artifacts
+[ -f ${REPO_ROOT}/ci/release_notes.md ] && mv ${REPO_ROOT}/ci/release_notes.md ${RELEASE_ROOT}/notes.md
 cat <<EOF >>${RELEASE_ROOT}/ci/notes.md
 
 # Changes
@@ -91,3 +91,5 @@ fi
 
 # so that future steps in the pipeline can push our changes
 cp -a ${REPO_ROOT} ${REPO_OUT}
+
+exit 1
