@@ -56,7 +56,7 @@ user ${CPAN_USER}
 password ${CPAN_PASSWORD}
 EOF
 
-cpan-upload *.tar.gz
+echo cpan-upload *.tar.gz
 popd
 
 mkdir -p ${RELEASE_ROOT}/artifacts
