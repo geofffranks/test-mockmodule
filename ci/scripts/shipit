@@ -27,22 +27,25 @@ if [[ -z ${VERSION} ]]; then
   exit 2
 fi
 
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+
+###############################################################
+
+header "Generating release notes..."
+pushd ${REPO_ROOT}
 changes=$(git log --pretty="- %h %s - %an" $(git describe --tags | cut -d - -f1)..HEAD)
-old_changes=$(cat ${REPO_ROOT}/Changes)
-cat <<EOF >> ${REPO_ROOT}/Changes
+old_changes=$(cat Changes)
+cat <<EOF >> Changes
 v$(git describe --tags | cut -d - -f1)
 
 $changes
 
 $old_changes
 EOF
+popd
 
-DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-
-###############################################################
-
-pushd ${REPO_ROOT}
 header "Updating module version..."
+pushd ${REPO_ROOT}
 sed -i "s/\$VERSION = '.*';/\$VERSION = '$VERSION';/" lib/Test/MockModule.pm
 
 header "Creating distribution tarball..."
