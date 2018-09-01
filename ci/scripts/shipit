@@ -27,17 +27,21 @@ if [[ -z ${VERSION} ]]; then
   exit 2
 fi
 
-#FIXME: populate ChangeLog + release notes
-if [[ ! -f ${REPO_ROOT}/ci/release_notes.md ]]; then
-  echo >&2 "ci/release_notes.md not found.  Did you forget to write them?"
-  exit 1
-fi
+changes=$(git log --pretty="- %h %s - %an" $(git describe --tags | cut -d - -f1)..HEAD)
+old_changes=$(cat ${REPO_ROOT}/Changes)
+cat <<EOF >> ${REPO_ROOT}/Changes
+v$(git describe --tags | cut -d - -f1)
+
+$changes
+
+$old_changes
+EOF
 
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
 ###############################################################
 
-cd ${REPO_ROOT}
+pushd ${REPO_ROOT}
 header "Updating module version..."
 sed -i "s/\$VERSION = '.*';/\$VERSION = '$VERSION';/" lib/Test/MockModule.pm
 
@@ -53,6 +57,20 @@ password ${CPAN_PASSWORD}
 EOF
 
 cpan-upload *.tar.gz
+popd
+
+mkdir -p ${RELEASE_ROOT}/artifacts
+
+echo "v${VERSION}"                         > ${RELEASE_ROOT}/tag
+echo "v${VERSION}"                         > ${RELEASE_ROOT}/name
+mv ${REPO_ROOT}/releases/*/*-${VERSION}.tgz  ${RELEASE_ROOT}/artifacts
+mv ${REPO_ROOT}/ci/release_notes.md          ${RELEASE_ROOT}/notes.md
+cat <<EOF >>${RELEASE_ROOT}/ci/notes.md
+
+# Changes
+
+$changes
+EOF
 
 header "Updating git repo with release..."
 if [[ -z $(git config --global user.email) ]]; then
