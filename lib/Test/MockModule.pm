@@ -379,6 +379,19 @@ for mocking methods you want to ignore!
     # Neuter a list of methods in one go
     $module->noop('purge', 'updated');
 
+
+=back
+
+=over 4
+
+=item TRACE
+
+A stub for Log::Trace
+
+=item DUMP
+
+A stub for Log::Trace
+
 =back
 
 =head1 SEE ALSO
