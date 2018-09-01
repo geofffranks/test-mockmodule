@@ -1,5 +1,11 @@
 Revision history for Test::MockModule
 
+v0.16
+    - Fixes an issue where warnings were thrown for mismatched prototypes,
+      when mocking a prototyped function.
+
+      Thanks @toddr for the fix!
+
 v0.15
     - Fixes a minor bug in the release tarball
 
