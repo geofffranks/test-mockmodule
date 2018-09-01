@@ -8,7 +8,6 @@ meta:
     name: gfranks/cpan-uploader
 
   aws:
-    bucket: test-mockmodule-pipeline
     access_key: (( vault "secret/aws/cfcommunity:access" ))
     secret_key: (( vault "secret/aws/cfcommunity:secret" ))
 
