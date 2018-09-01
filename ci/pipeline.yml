@@ -8,10 +8,10 @@ meta:
   release:  (( grab meta.name ))
   target:   (( param "Please identify the name of the target Concourse CI" ))
   url:      (( param "Please specify the full url of the target Concourse CI" ))
-  pipeline: (( concat meta.name ))
+  pipeline: (( grab meta.name ))
 
   cpan:
-    user;     (( param "What is the username to use for uploading to CPAN?" ))
+    user:     (( param "What is the username to use for uploading to CPAN?" ))
     password: (( param "What is the password to use for uplaoding to CPAN?" ))
 
   image:
