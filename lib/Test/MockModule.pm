@@ -7,6 +7,15 @@ use Carp;
 use SUPER;
 $VERSION = '0.170.0';
 
+our $STRICT_MODE;
+
+sub import {
+    my ( $class, @args ) = @_;
+
+    $STRICT_MODE = 1 if ( grep { $_ =~ m/strict/i } @args );
+
+    return;
+}
 my %mocked;
 sub new {
 	my $class = shift;
@@ -66,7 +75,7 @@ sub redefine {
 		}
 	}
 
-	return $self->mock(@_);
+	return $self->_mock(@_);
 }
 
 sub define {
@@ -81,10 +90,18 @@ sub define {
 		}
 	}
 
-	return $self->mock(@_);
+	return $self->_mock(@_);
 }
 
 sub mock {
+	my ($self, @mocks) = (shift, @_);
+
+	croak "mock is not allowed in strict mode. Please use define or redefine" if $STRICT_MODE;
+
+	return $self->_mock(@mocks);
+}
+
+sub _mock {
 	my $self = shift;
 
 	while (my ($name, $value) = splice @_, 0, 2) {
@@ -114,7 +131,10 @@ sub mock {
 
 sub noop {
     my $self = shift;
-    $self->mock($_,1) for @_;
+
+    croak "noop is not allowed in strict mode. Please use define or redefine" if $STRICT_MODE;
+
+    $self->_mock($_,1) for @_;
 }
 
 sub original {
@@ -243,6 +263,18 @@ Test::MockModule - Override subroutines in a module for unit testing
 		my $foo = Foo->new();
 		$foo->foo(); # prints "Foo!\n"
 	}
+
+    # If you want to prevent noop and mock from working, you can
+    # load Test::MockModule in strict mode
+
+    use Test::MockModule qw/strict/;
+    my $module = Test::MockModule->new('Module::Name');
+
+    # Redefined the other_subroutine or dies if it's not there.
+    $module->redefine('other_subroutine', sub { ... });
+
+    # Dies since you specified you wanted strict mode.
+    $module->mock('subroutine', sub { ... });
 
 =head1 DESCRIPTION
 
