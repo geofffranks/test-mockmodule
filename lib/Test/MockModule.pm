@@ -69,6 +69,21 @@ sub redefine {
 	return $self->mock(@_);
 }
 
+sub define {
+	my ($self, @mocks) = (shift, @_);
+
+	while ( my ($name, $value) = splice @mocks, 0, 2 ) {
+		my $sub_name = $self->_full_name($name);
+		my $coderef = *{$sub_name}{'CODE'};
+
+		if ('CODE' eq ref $coderef) {
+			croak "$sub_name exists!";
+		}
+	}
+
+	return $self->mock(@_);
+}
+
 sub mock {
 	my $self = shift;
 
@@ -208,9 +223,12 @@ Test::MockModule - Override subroutines in a module for unit testing
 		$module->mock('subroutine', sub { ... });
 		Module::Name::subroutine(@args); # mocked
 
-		#Same effect, but this will die() if other_subroutine()
-		#doesn't already exist, which is often desirable.
+		# Same effect, but this will die() if other_subroutine()
+		# doesn't already exist, which is often desirable.
 		$module->redefine('other_subroutine', sub { ... });
+
+		# This will die() if another_subroutine() is defined.
+		$module->define('another_subroutine', sub { ... });
 	}
 
 	Module::Name::subroutine(@args); # original subroutine
@@ -355,6 +373,18 @@ code path that no longer behaves consistently with the mocked behavior.
 
 Note that redefine is also now checking if one of the parent provides the sub
 and will not die if it's available in the chain.
+
+=item define($subroutine)
+
+The reverse of redefine, this will fail if the passed subroutine exists.
+While this use case is rare, there are times where the perl code you are
+testing is inspecting a package and adding a missing subroutine is actually
+what you want to do.
+
+By using define, you're asserting that the subroutine you want to be mocked
+should not exist in advance.
+
+Note: define does not check for inheritance like redefine.
 
 =item original($subroutine)
 
