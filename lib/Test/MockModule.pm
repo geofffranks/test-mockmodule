@@ -66,8 +66,7 @@ sub redefine {
 
 		if ( $sub_name =~ qr{^(.+)::([^:]+)$} ) {
 			my ( $pkg, $sub ) = ( $1, $2 );
-			my $object = bless {}, $pkg;
-			next if $object->can( $sub );
+			next if $pkg->can( $sub );
 		}
 
 		if ('CODE' ne ref $coderef) {
