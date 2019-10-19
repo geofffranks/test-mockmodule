@@ -30,7 +30,7 @@ sub new {
 		croak "Invalid package name $package";
 	}
 
-	unless ($args{no_auto} || ${"$package\::VERSION"}) {
+	unless ($package eq "CORE::GLOBAL" || $args{no_auto} || ${"$package\::VERSION"}) {
 		(my $load_package = "$package.pm") =~ s{::}{/}g;
 		TRACE("$package is empty, loading $load_package");
 		require $load_package;
