@@ -126,6 +126,8 @@ sub _mock {
 		TRACE("Installing mocked $sub_name");
 		_replace_sub($sub_name, $code);
 	}
+
+	return $self;
 }
 
 sub noop {
@@ -134,6 +136,8 @@ sub noop {
     croak "noop is not allowed in strict mode. Please use define or redefine" if $STRICT_MODE;
 
     $self->_mock($_,1) for @_;
+
+    return;
 }
 
 sub original {
@@ -168,6 +172,8 @@ sub unmock_all {
 	foreach (keys %{$self->{_mocked}}) {
 		$self->unmock($_);
 	}
+
+	return;
 }
 
 sub is_mocked {
@@ -250,6 +256,15 @@ Test::MockModule - Override subroutines in a module for unit testing
 		$module->define('another_subroutine', sub { ... });
 	}
 
+	{
+		# you can also chain new/mock/redefine/define
+
+		Test::MockModule->new('Module::Name')
+		->mock( one_subroutine => sub { ... })
+		->redefine( other_subroutine => sub { ... } )
+		->define( a_new_sub => 1234 );
+	}
+
 	Module::Name::subroutine(@args); # original subroutine
 
 	# Working with objects
@@ -313,6 +328,10 @@ mocked
 Temporarily replaces one or more subroutines in the mocked module. A subroutine
 can be mocked with a code reference or a scalar. A scalar will be recast as a
 subroutine that returns the scalar.
+
+Returns the current C<Test::MockModule> object, so you can chain L<new> with L<mock>.
+
+	my $mock = Test::MockModule->new->(...)->mock(...);
 
 The following statements are equivalent:
 
@@ -405,6 +424,10 @@ code path that no longer behaves consistently with the mocked behavior.
 Note that redefine is also now checking if one of the parent provides the sub
 and will not die if it's available in the chain.
 
+Returns the current C<Test::MockModule> object, so you can chain L<new> with L<redefine>.
+
+	my $mock = Test::MockModule->new->(...)->redefine(...);
+
 =item define($subroutine)
 
 The reverse of redefine, this will fail if the passed subroutine exists.
@@ -416,6 +439,10 @@ By using define, you're asserting that the subroutine you want to be mocked
 should not exist in advance.
 
 Note: define does not check for inheritance like redefine.
+
+Returns the current C<Test::MockModule> object, so you can chain L<new> with L<define>.
+
+	my $mock = Test::MockModule->new->(...)->define(...);
 
 =item original($subroutine)
 
