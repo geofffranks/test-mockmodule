@@ -1,5 +1,8 @@
 Revision history for Test::MockModule
 
+{{NEXT}}
+- allow chaining of new with mock, redefine, define
+
 v0.170.0
 - 182d066 Fix versioning for semver conversion + PAUSE - Geoff Franks
 - 4afeedf release v0.17.0 - CI Bot
