@@ -2,6 +2,15 @@ Revision history for Test::MockModule
 
 {{NEXT}}
 - allow chaining of new with mock, redefine, define
+- redefine() no longer triggers errors if the object being mocked is not a hashref
+- Adds a define() method for mocking new functions that do not exist. Throws an
+  error if a function does exist.
+- Adds `strict` mode to prevent usage of noop() and mock() functions, and force
+  the usage of define/redefine if desired.:
+
+  ```
+  use Test::MockModule qw/strict/;
+  ```
 
 v0.170.0
 - 182d066 Fix versioning for semver conversion + PAUSE - Geoff Franks
