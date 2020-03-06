@@ -157,6 +157,7 @@ sub original {
 sub unmock {
 	my $self = shift;
 
+	carp 'Nothing to unmock' unless @_;
 	for my $name (@_) {
 		croak "Invalid subroutine name: $name" unless _valid_subname($name);
 
