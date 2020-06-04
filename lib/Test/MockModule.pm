@@ -12,7 +12,14 @@ our $STRICT_MODE;
 sub import {
     my ( $class, @args ) = @_;
 
-    $STRICT_MODE = 1 if ( grep { $_ =~ m/strict/i } @args );
+    foreach my $arg (@args) {
+        if ( $arg eq 'strict' ) {
+            $STRICT_MODE = 1;
+        }
+        else {
+            warn "Test::MockModule unknown import option '$arg'";
+        }
+    }
 
     return;
 }
