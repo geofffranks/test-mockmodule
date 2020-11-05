@@ -1,5 +1,8 @@
 Revision history for Test::MockModule
 
+vX.XXX.X
+- XXXXXXX 'strict' mode is now lexically scoped
+
 v0.175.0
 - 964aa2a Ignore CI files and whitesource - Nicolas R
 
