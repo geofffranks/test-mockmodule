@@ -5,7 +5,7 @@ use vars qw/$VERSION/;
 use Scalar::Util qw/reftype weaken/;
 use Carp;
 use SUPER;
-$VERSION = '0.175.0';
+$VERSION = '0.176.0';
 
 sub import {
     my ( $class, @args ) = @_;
