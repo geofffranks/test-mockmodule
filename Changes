@@ -1,5 +1,7 @@
 Revision history for Test::MockModule
 
+v0.277.0
+
 - Move test modules from build to test requires - Olaf Alders
 
 v0.176.0
