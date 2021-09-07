@@ -1,5 +1,7 @@
 Revision history for Test::MockModule
 
+- Move test modules from build to test requires - Olaf Alders
+
 v0.176.0
 - 3ba8bc7 lexically scoped strictness - David Cantrell
 - e57fc5a Update ci with dockerhub auth - Geoff Franks
