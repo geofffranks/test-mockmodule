@@ -231,9 +231,10 @@ sub _replace_sub {
 
 		# save a copy of all non-code slots
 		my %slot;
-		foreach (qw(ARRAY FORMAT HASH IO SCALAR)) {
-			next unless defined(my $elem = *{$symbols{$sub}}{$_});
-			$slot{$_} = $elem;
+		foreach my $slot_name (qw(ARRAY FORMAT HASH IO SCALAR)) {
+			next unless defined $symbols{$sub};
+			next unless defined(my $elem = *{$symbols{$sub}}{$slot_name});
+			$slot{$slot_name} = $elem;
 		}
 
 		# clear the symbol table entry for the subroutine
