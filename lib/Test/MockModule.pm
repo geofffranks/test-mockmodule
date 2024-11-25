@@ -8,6 +8,8 @@ use SUPER;
 # This is now auto-updated at release time by the github action
 $VERSION = 'DEVELOP';
 
+our $GLOBAL_STRICT_MODE;
+
 sub import {
     my ( $class, @args ) = @_;
 
@@ -15,9 +17,14 @@ sub import {
     $^H{'Test::MockModule/STRICT_MODE'} = 0;
 
     foreach my $arg (@args) {
-        if ( $arg eq 'strict' ) {
+        if($arg eq 'global-strict' ) {
+            $GLOBAL_STRICT_MODE=1;
+            $^H{'Test::MockModule/STRICT_MODE'} = 1;
+        }
+        elsif ( $arg eq 'strict' ) {
             $^H{'Test::MockModule/STRICT_MODE'} = 1;
         } elsif ( $arg eq 'nostrict' ) {
+            $GLOBAL_STRICT_MODE && die "use Test::MockModule qw(nostrict) is illegal when GLOBAL_STRICT_MODE is being enforced";
             $^H{'Test::MockModule/STRICT_MODE'} = 0;
         } else {
             carp "Test::MockModule unknown import option '$arg'";
@@ -31,6 +38,8 @@ sub _strict_mode {
     while(my @fields = caller($depth++)) {
         my $hints = $fields[10];
         if($hints && grep { /^Test::MockModule\// } keys %{$hints}) {
+            $GLOBAL_STRICT_MODE && !$hints->{'Test::MockModule/STRICT_MODE'} && die "use Test::MockModule qw(nostrict) is illegal when GLOBAL_STRICT_MODE is being enforced";
+
             return $hints->{'Test::MockModule/STRICT_MODE'};
         }
     }
@@ -328,6 +337,9 @@ Test::MockModule - Override subroutines in a module for unit testing
         $module->mock('subroutine', sub { ... });
     }
 
+	# Assure strict is ALWAYS used.
+	use Test::MockModule 'global-strict';
+
     # Back in the strict scope, so mock() dies here
     $module->mock('subroutine', sub { ... });
 
@@ -387,6 +399,19 @@ NB that strictness must be defined at compile-time, and set using C<use>. If
 you think you're going to try and be clever by calling Test::MockModule's
 C<import()> method at runtime then what happens in undefined, with results
 differing from one version of perl to another. What larks!
+
+=head1 GLOBAL STRICT MODE
+
+If your particular test suite needs to assure that no developer ever accidentally
+turns off strict, this is the mode for you
+
+	use Test::MockModule 'global-strict';
+
+Setting this mode will cause any later invocation of nostrict to fail on compile.
+Further, any use of mock at runtime will die if the 'nostrict' mode was invoked
+prior to global-strict being initially set. While this seems like it might be
+overkill, this can be important as the number of simultaneous developers
+increases over time.
 
 =head1 METHODS
 
