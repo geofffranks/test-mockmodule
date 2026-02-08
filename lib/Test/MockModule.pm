@@ -111,7 +111,14 @@ sub define {
 		}
 	}
 
-	return $self->_mock(@mocks);
+	my $ret = $self->_mock(@mocks);
+
+	# Mark defined subs so _mock() can update _orig on redefine (GH #64)
+	while ( my ($name, $value) = splice @mocks, 0, 2 ) {
+		$self->{_defined}{$name} = 1;
+	}
+
+	return $ret;
 }
 
 sub mock {
@@ -144,6 +151,11 @@ sub _mock {
 			} else {
 				$self->{_orig}{$name} = undef;
 			}
+		} elsif ($self->{_defined}{$name} && defined &{$sub_name}) {
+			# GH #64: when redefining a sub that was created via define(),
+			# update _orig to the defined sub so unmock() restores it
+			$self->{_orig}{$name} = \&$sub_name;
+			delete $self->{_defined}{$name};
 		}
 		TRACE("Installing mocked $sub_name");
 		_replace_sub($sub_name, $code);
@@ -188,6 +200,7 @@ sub unmock {
 		_replace_sub($sub_name, $self->{_orig}{$name});
 		delete $self->{_mocked}{$name};
 		delete $self->{_orig}{$name};
+		delete $self->{_defined}{$name};
 	}
 	return $self;
 }
