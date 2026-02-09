@@ -188,10 +188,15 @@ sub original {
 
 	carp 'Please provide a valid function name' unless _valid_subname($name);
 
-	return carp _full_name($self, $name) . " is not mocked"
-		unless $self->{_mocked}{$name};
+	unless ($self->{_mocked}{$name}) {
+		# GH #42: when not mocked, return the actual sub instead of warning
+		my $sub_name = _full_name($self, $name);
+		return \&$sub_name if defined &{$sub_name};
+		return $self->{_package}->super($name);
+	}
 	return defined $self->{_orig}{$name} ? $self->{_orig}{$name} : $self->{_package}->super($name);
 }
+
 sub unmock {
 	my ( $self, @names ) = @_;
 
@@ -229,6 +234,11 @@ sub is_mocked {
 	return unless _valid_subname($name);
 
 	return $self->{_mocked}{$name};
+}
+
+sub mocked_subs {
+	my $self = shift;
+	return sort keys %{$self->{_mocked}};
 }
 
 sub _full_name {
@@ -449,6 +459,16 @@ Returns the target package name for the mocked subroutines
 Returns a boolean value indicating whether or not the subroutine is currently
 mocked
 
+=item mocked_subs()
+
+Returns a sorted list of the subroutine names that are currently mocked for
+this module. Useful for debugging complex test setups.
+
+	my $mock = Test::MockModule->new('Module::Name');
+	$mock->mock('foo', sub { 1 });
+	$mock->mock('bar', sub { 2 });
+	my @mocked = $mock->mocked_subs; # ('bar', 'foo')
+
 =item mock($subroutine =E<gt> \E<amp>coderef)
 
 Temporarily replaces one or more subroutines in the mocked module. A subroutine
@@ -572,7 +592,9 @@ Returns the current C<Test::MockModule> object, so you can chain L<new> with L<d
 
 =item original($subroutine)
 
-Returns the original (unmocked) subroutine
+Returns the original (unmocked) subroutine. If the subroutine is not currently
+mocked, returns the existing subroutine directly instead of warning. This makes
+it safe to call C<original()> before or after mocking.
 
 Here is a sample how to wrap a function with custom arguments using the original subroutine.
 This is useful when you cannot (do not) want to alter the original code to abstract
