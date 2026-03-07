@@ -183,6 +183,36 @@ sub noop {
     return;
 }
 
+sub mock_all {
+	my ($self, %opts) = @_;
+
+	my $package = $self->{_package};
+
+	my @subs;
+	{
+		no strict 'refs';
+		@subs = sort grep {
+			defined &{"${package}::$_"}
+		} keys %{"${package}::"};
+	}
+
+	my $make_handler = exists $opts{handler}
+		? sub { $opts{handler} }
+		: $opts{noop}
+			? sub { sub {} }
+			: sub { my $n = shift; sub { croak "$n was not mocked" } };
+
+	my @to_mock;
+	for my $name (@subs) {
+		next if $name eq 'import';
+		next if $self->{_mocked}{$name};
+		push @to_mock, $name, $make_handler->("${package}::${name}");
+	}
+
+	return $self->_mock(@to_mock) if @to_mock;
+	return $self;
+}
+
 sub original {
 	my ($self, $name) = @_;
 
@@ -654,6 +684,38 @@ for mocking methods you want to ignore!
     # Neuter a list of methods in one go
     $module->noop('purge', 'updated');
 
+=item mock_all(%options)
+
+Mocks all subroutines in the target package that are not already mocked.
+By default, each mocked subroutine will die when called, making it easy
+to catch unexpected calls during testing.
+
+    my $module = Test::MockModule->new('Foo');
+    $module->mock_all();
+    Foo->bar();  # dies: "Foo::bar was not mocked"
+
+The C<import> subroutine is always skipped.
+
+Options:
+
+=over 4
+
+=item noop =E<gt> 1
+
+Mock all subroutines with a no-op (empty sub) instead of dying.
+
+    $module->mock_all(noop => 1);
+    Foo->bar();  # silently does nothing
+
+=item handler =E<gt> \&coderef
+
+Provide a custom handler for all mocked subroutines.
+
+    $module->mock_all(handler => sub { warn "unexpected call" });
+
+=back
+
+Returns the current C<Test::MockModule> object for chaining.
 
 =back
 
