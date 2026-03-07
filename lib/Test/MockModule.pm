@@ -183,9 +183,20 @@ sub mock_all {
 			? sub { sub {} }
 			: sub { my $n = shift; sub { croak "$n was not mocked" } };
 
+	# Skip special Perl subs that should never be blindly mocked:
+	# - Phase blocks (BEGIN, END, INIT, CHECK, UNITCHECK) run at compile/exit time
+	# - DESTROY is called during object cleanup
+	# - AUTOLOAD handles missing method dispatch
+	# - import handles use/import semantics
+	# - Overload subs start with '(' (e.g. '(""', '(+', '(==')
+	my %_skip = map { $_ => 1 } qw(
+		import DESTROY BEGIN END INIT CHECK UNITCHECK AUTOLOAD
+	);
+
 	my @to_mock;
 	for my $name (@subs) {
-		next if $name eq 'import';
+		next if $_skip{$name};
+		next if $name =~ /^\(/;  # overload subs
 		next if $self->{_mocked}{$name};
 		push @to_mock, $name, $make_handler->("${package}::${name}");
 	}

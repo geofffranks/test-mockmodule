@@ -106,4 +106,67 @@ is( MockAllTarget::gamma(), 'gamma', 'gamma restored after handler mock goes out
     like( $@, qr/MockAllTarget::beta was not mocked/, 'mock_all still covers other subs' );
 }
 
+# 9. Special Perl subs are skipped by mock_all
+{
+    package SpecialSubTarget;
+    our $VERSION = 1;
+
+    sub new     { return bless {}, shift }
+    sub alpha   { return 'alpha' }
+    sub DESTROY { }
+    sub AUTOLOAD { our $AUTOLOAD; return "auto:$AUTOLOAD" }
+    sub BEGIN { }   # technically already ran, but the symbol exists
+    sub import  { return 'import' }
+
+    # Simulate overloaded operator subs (these appear in the stash with '(' prefix)
+    use overload '""' => sub { 'stringified' }, fallback => 1;
+}
+
+{
+    # Create object BEFORE mocking so new() works
+    my $obj = SpecialSubTarget->new();
+
+    my $mock = Test::MockModule->new('SpecialSubTarget');
+    $mock->mock_all();
+
+    # alpha should be mocked (normal sub)
+    eval { SpecialSubTarget::alpha() };
+    like( $@, qr/SpecialSubTarget::alpha was not mocked/, 'normal sub is mocked by mock_all' );
+
+    # DESTROY should NOT be mocked — mocking it causes crashes during cleanup
+    # If DESTROY were mocked, this would croak when $obj goes out of scope
+    undef $obj;
+    pass('DESTROY is skipped by mock_all — no crash on object cleanup');
+
+    # import should NOT be mocked
+    is( SpecialSubTarget::import(), 'import', 'import is skipped by mock_all' );
+}
+
+# Verify the skip list by inspecting which subs got mocked
+{
+    my $mock = Test::MockModule->new('SpecialSubTarget');
+    $mock->mock_all(noop => 1);
+
+    ok( !$mock->is_mocked('DESTROY'),  'DESTROY is not mocked by mock_all' );
+    ok( !$mock->is_mocked('AUTOLOAD'), 'AUTOLOAD is not mocked by mock_all' );
+    ok( !$mock->is_mocked('import'),   'import is not mocked by mock_all' );
+
+    # Overload subs (starting with '(') should be skipped
+    my $has_overload_sub = 0;
+    {
+        no strict 'refs';
+        for my $name (keys %{'SpecialSubTarget::'}) {
+            if ($name =~ /^\(/ && defined &{"SpecialSubTarget::$name"}) {
+                ok( !$mock->is_mocked($name), "overload sub '$name' is not mocked by mock_all" );
+                $has_overload_sub = 1;
+            }
+        }
+    }
+    ok( $has_overload_sub, 'SpecialSubTarget has at least one overload sub to test' );
+
+    # But normal subs ARE mocked
+    ok( $mock->is_mocked('alpha'), 'normal sub alpha IS mocked' );
+    ok( $mock->is_mocked('new'),   'new IS mocked' );
+}
+
 done_testing();
