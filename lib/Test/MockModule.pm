@@ -37,7 +37,7 @@ sub _strict_mode {
     my $depth = 0;
     while(my @fields = caller($depth++)) {
         my $hints = $fields[10];
-        if($hints && grep { /^Test::MockModule\// } keys %{$hints}) {
+        if($hints && exists $hints->{'Test::MockModule/STRICT_MODE'}) {
             $GLOBAL_STRICT_MODE && !$hints->{'Test::MockModule/STRICT_MODE'} && die "use Test::MockModule qw(nostrict) is illegal when GLOBAL_STRICT_MODE is being enforced";
 
             return $hints->{'Test::MockModule/STRICT_MODE'};
