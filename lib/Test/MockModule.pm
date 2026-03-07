@@ -186,6 +186,8 @@ sub noop {
 sub mock_all {
 	my ($self, %opts) = @_;
 
+	croak "mock_all is not allowed in strict mode. Please use redefine" if $self->_strict_mode();
+
 	my $package = $self->{_package};
 
 	my @subs;
