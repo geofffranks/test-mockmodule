@@ -178,7 +178,7 @@ sub noop {
 
     croak "noop is not allowed in strict mode. Please use define or redefine" if $self->_strict_mode();
 
-    $self->_mock($_,1) for @_;
+    $self->_mock($_,undef) for @_;
 
     return;
 }
