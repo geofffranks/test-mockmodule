@@ -509,7 +509,7 @@ subroutine that returns the scalar.
 
 Returns the current C<Test::MockModule> object, so you can chain L<new> with L<mock>.
 
-	my $mock = Test::MockModule->new->(...)->mock(...);
+	my $mock = Test::MockModule->new(...)->mock(...);
 
 The following statements are equivalent:
 
@@ -604,7 +604,7 @@ and will not die if it's available in the chain.
 
 Returns the current C<Test::MockModule> object, so you can chain L<new> with L<redefine>.
 
-	my $mock = Test::MockModule->new->(...)->redefine(...);
+	my $mock = Test::MockModule->new(...)->redefine(...);
 
 =item define($subroutine)
 
@@ -620,7 +620,7 @@ Note: define does not check for inheritance like redefine.
 
 Returns the current C<Test::MockModule> object, so you can chain L<new> with L<define>.
 
-	my $mock = Test::MockModule->new->(...)->define(...);
+	my $mock = Test::MockModule->new(...)->define(...);
 
 =item original($subroutine)
 
@@ -675,7 +675,7 @@ C<unmock()> in one go.
 =item unmock_all()
 
 Restores all the subroutines in the package that were mocked. This is
-automatically called when all C<Test::MockObject> objects for the given package
+automatically called when all C<Test::MockModule> objects for the given package
 go out of scope.
 
 =item noop($subroutine [, ...])
