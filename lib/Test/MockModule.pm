@@ -2,7 +2,7 @@ package Test::MockModule;
 use warnings;
 use strict qw/subs vars/;
 use vars qw/$VERSION/;
-use Scalar::Util qw/reftype weaken/;
+use Scalar::Util qw/reftype weaken refaddr/;
 use Carp;
 use SUPER;
 # This is now auto-updated at release time by the github action
@@ -46,12 +46,9 @@ sub _strict_mode {
     return 0;
 }
 
-my %mocked;
+my %mock_subs; # per-sub stack: { 'Pkg::sub' => [ { id => refaddr, orig => coderef }, ... ] }
 sub new {
 	my ($class, $package, %args) = @_;
-	if ($package && (my $existing = $mocked{$package})) {
-		return $existing;
-	}
 
 	croak "Cannot mock $package" if $package && $class && $package eq $class;
 	unless (_valid_package($package)) {
@@ -70,8 +67,6 @@ sub new {
 		_package => $package,
 		_mocked  => {},
 	}, $class;
-	$mocked{$package} = $self;
-	weaken $mocked{$package};
 	return $self;
 }
 
@@ -155,11 +150,13 @@ sub _mock {
 		if (!$self->{_mocked}{$name}) {
 			TRACE("Storing existing $sub_name");
 			$self->{_mocked}{$name} = 1;
-			if (defined &{$sub_name}) {
-				$self->{_orig}{$name} = \&$sub_name;
-			} else {
-				$self->{_orig}{$name} = undef;
-			}
+			my $orig = defined &{$sub_name} ? \&$sub_name : undef;
+			$self->{_orig}{$name} = $orig;
+			$mock_subs{$sub_name} ||= [];
+			push @{$mock_subs{$sub_name}}, {
+				id   => refaddr($self),
+				orig => $orig,
+			};
 		} elsif ($self->{_defined}{$name} && defined &{$sub_name}) {
 			# GH #64: when redefining a sub that was created via define(),
 			# update _orig to the defined sub so unmock() restores it
@@ -206,7 +203,40 @@ sub unmock {
 		}
 
 		TRACE("Restoring original $sub_name");
-		_replace_sub($sub_name, $self->{_orig}{$name});
+		my $stack = $mock_subs{$sub_name};
+		if ($stack) {
+			my $my_id = refaddr($self);
+			# Find our position in the stack
+			my $idx;
+			for my $i (0 .. $#$stack) {
+				if ($stack->[$i]{id} == $my_id) {
+					$idx = $i;
+					last;
+				}
+			}
+
+			if (defined $idx) {
+				my $our_orig = $stack->[$idx]{orig};
+				if ($idx == $#$stack) {
+					# Top of stack: restore our saved original
+					pop @$stack;
+					_replace_sub($sub_name, $our_orig);
+				} else {
+					# Middle of stack: pass our original to the next entry
+					# so it will restore correctly when it unmocks
+					$stack->[$idx + 1]{orig} = $our_orig;
+					splice @$stack, $idx, 1;
+				}
+			} else {
+				# Not found in stack (shouldn't happen), restore directly
+				_replace_sub($sub_name, $self->{_orig}{$name});
+			}
+
+			delete $mock_subs{$sub_name} unless @$stack;
+		} else {
+			_replace_sub($sub_name, $self->{_orig}{$name});
+		}
+
 		delete $self->{_mocked}{$name};
 		delete $self->{_orig}{$name};
 		delete $self->{_defined}{$name};
@@ -432,7 +462,15 @@ increases over time.
 
 =item new($package[, %options])
 
-Returns an object that will mock subroutines in the specified C<$package>.
+Returns a new object that will mock subroutines in the specified C<$package>.
+Each call to C<new()> returns a distinct object, even for the same package.
+Multiple mock objects can coexist for the same package, each tracking its own
+mocked subroutines independently. When a mock object is destroyed (or goes out
+of scope), only the subroutines it mocked are restored.
+
+If two objects mock the same subroutine, the most recent mock takes effect.
+When that object is destroyed, the earlier mock is restored. When all mock
+objects for a subroutine are destroyed, the original subroutine is restored.
 
 If there is no C<$VERSION> defined in C<$package>, the module will be
 automatically loaded. You can override this behaviour by setting the C<no_auto>
@@ -618,7 +656,7 @@ C<unmock()> in one go.
 =item unmock_all()
 
 Restores all the subroutines in the package that were mocked. This is
-automatically called when all C<Test::MockObject> objects for the given package
+automatically called when all C<Test::MockModule> objects for the given package
 go out of scope.
 
 =item noop($subroutine [, ...])

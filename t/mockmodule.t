@@ -37,8 +37,8 @@ like($@, qr/Invalid package name/, ' ... croaks if package is undefined');
 	ok($INC{'ExampleModule.pm'}, '... module loaded if !$VERSION');
 	ok($mcgi->isa('Test::MockModule'), '... returns a Test::MockModule object');
 	my $mcgi2 = Test::MockModule->new('ExampleModule');
-	is($mcgi, $mcgi2,
-		"... returns existing object if there's already one for the package");
+	isnt($mcgi, $mcgi2,
+		"... returns a new object even if one already exists for the package");
 
 	# get_package()
 	ok($mcgi->can('get_package'), 'get_package');
