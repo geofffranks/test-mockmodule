@@ -8,6 +8,8 @@ use SUPER;
 # This is now auto-updated at release time by the github action
 $VERSION = 'DEVELOP';
 
+our $GLOBAL_STRICT_MODE;
+
 sub import {
     my ( $class, @args ) = @_;
 
@@ -15,9 +17,14 @@ sub import {
     $^H{'Test::MockModule/STRICT_MODE'} = 0;
 
     foreach my $arg (@args) {
-        if ( $arg eq 'strict' ) {
+        if($arg eq 'global-strict' ) {
+            $GLOBAL_STRICT_MODE=1;
+            $^H{'Test::MockModule/STRICT_MODE'} = 1;
+        }
+        elsif ( $arg eq 'strict' ) {
             $^H{'Test::MockModule/STRICT_MODE'} = 1;
         } elsif ( $arg eq 'nostrict' ) {
+            $GLOBAL_STRICT_MODE && die "use Test::MockModule qw(nostrict) is illegal when GLOBAL_STRICT_MODE is being enforced";
             $^H{'Test::MockModule/STRICT_MODE'} = 0;
         } else {
             carp "Test::MockModule unknown import option '$arg'";
@@ -31,6 +38,8 @@ sub _strict_mode {
     while(my @fields = caller($depth++)) {
         my $hints = $fields[10];
         if($hints && grep { /^Test::MockModule\// } keys %{$hints}) {
+            $GLOBAL_STRICT_MODE && !$hints->{'Test::MockModule/STRICT_MODE'} && die "use Test::MockModule qw(nostrict) is illegal when GLOBAL_STRICT_MODE is being enforced";
+
             return $hints->{'Test::MockModule/STRICT_MODE'};
         }
     }
@@ -111,7 +120,14 @@ sub define {
 		}
 	}
 
-	return $self->_mock(@mocks);
+	my $ret = $self->_mock(@mocks);
+
+	# Mark defined subs so _mock() can update _orig on redefine (GH #64)
+	while ( my ($name, $value) = splice @mocks, 0, 2 ) {
+		$self->{_defined}{$name} = 1;
+	}
+
+	return $ret;
 }
 
 sub mock {
@@ -144,6 +160,11 @@ sub _mock {
 			} else {
 				$self->{_orig}{$name} = undef;
 			}
+		} elsif ($self->{_defined}{$name} && defined &{$sub_name}) {
+			# GH #64: when redefining a sub that was created via define(),
+			# update _orig to the defined sub so unmock() restores it
+			$self->{_orig}{$name} = \&$sub_name;
+			delete $self->{_defined}{$name};
 		}
 		TRACE("Installing mocked $sub_name");
 		_replace_sub($sub_name, $code);
@@ -199,10 +220,15 @@ sub original {
 
 	carp 'Please provide a valid function name' unless _valid_subname($name);
 
-	return carp _full_name($self, $name) . " is not mocked"
-		unless $self->{_mocked}{$name};
+	unless ($self->{_mocked}{$name}) {
+		# GH #42: when not mocked, return the actual sub instead of warning
+		my $sub_name = _full_name($self, $name);
+		return \&$sub_name if defined &{$sub_name};
+		return $self->{_package}->super($name);
+	}
 	return defined $self->{_orig}{$name} ? $self->{_orig}{$name} : $self->{_package}->super($name);
 }
+
 sub unmock {
 	my ( $self, @names ) = @_;
 
@@ -220,6 +246,7 @@ sub unmock {
 		_replace_sub($sub_name, $self->{_orig}{$name});
 		delete $self->{_mocked}{$name};
 		delete $self->{_orig}{$name};
+		delete $self->{_defined}{$name};
 	}
 	return $self;
 }
@@ -239,6 +266,11 @@ sub is_mocked {
 	return unless _valid_subname($name);
 
 	return $self->{_mocked}{$name};
+}
+
+sub mocked_subs {
+	my $self = shift;
+	return sort keys %{$self->{_mocked}};
 }
 
 sub _full_name {
@@ -360,6 +392,9 @@ Test::MockModule - Override subroutines in a module for unit testing
         $module->mock('subroutine', sub { ... });
     }
 
+	# Assure strict is ALWAYS used.
+	use Test::MockModule 'global-strict';
+
     # Back in the strict scope, so mock() dies here
     $module->mock('subroutine', sub { ... });
 
@@ -420,6 +455,19 @@ you think you're going to try and be clever by calling Test::MockModule's
 C<import()> method at runtime then what happens in undefined, with results
 differing from one version of perl to another. What larks!
 
+=head1 GLOBAL STRICT MODE
+
+If your particular test suite needs to assure that no developer ever accidentally
+turns off strict, this is the mode for you
+
+	use Test::MockModule 'global-strict';
+
+Setting this mode will cause any later invocation of nostrict to fail on compile.
+Further, any use of mock at runtime will die if the 'nostrict' mode was invoked
+prior to global-strict being initially set. While this seems like it might be
+overkill, this can be important as the number of simultaneous developers
+increases over time.
+
 =head1 METHODS
 
 =over 4
@@ -442,6 +490,16 @@ Returns the target package name for the mocked subroutines
 
 Returns a boolean value indicating whether or not the subroutine is currently
 mocked
+
+=item mocked_subs()
+
+Returns a sorted list of the subroutine names that are currently mocked for
+this module. Useful for debugging complex test setups.
+
+	my $mock = Test::MockModule->new('Module::Name');
+	$mock->mock('foo', sub { 1 });
+	$mock->mock('bar', sub { 2 });
+	my @mocked = $mock->mocked_subs; # ('bar', 'foo')
 
 =item mock($subroutine =E<gt> \E<amp>coderef)
 
@@ -566,7 +624,9 @@ Returns the current C<Test::MockModule> object, so you can chain L<new> with L<d
 
 =item original($subroutine)
 
-Returns the original (unmocked) subroutine
+Returns the original (unmocked) subroutine. If the subroutine is not currently
+mocked, returns the existing subroutine directly instead of warning. This makes
+it safe to call C<original()> before or after mocking.
 
 Here is a sample how to wrap a function with custom arguments using the original subroutine.
 This is useful when you cannot (do not) want to alter the original code to abstract
@@ -586,20 +646,23 @@ one hardcoded argument pass to a function.
 	use Test::MockModule;
 
 	my $mock = Test::MockModule->new("MyModule");
+	# capture the original before mocking to avoid closing over $mock
+	my $orig_get_path = $mock->original("get_path_for");
 	# replace all calls to get_path_for using a different argument
 	$mock->redefine("get_path_for", sub {
-		return $mock->original("get_path_for")->("/my/custom/path");
+		return $orig_get_path->("/my/custom/path");
 	});
 
 	# or
 
+	my $orig_get_path = $mock->original("get_path_for");
 	$mock->redefine("get_path_for", sub {
 		my $path = shift;
 		if ( $path && $path eq "/a/b/c/d" ) {
 			# only alter calls with path set to "/a/b/c/d"
-			return $mock->original("get_path_for")->("/my/custom/path");
+			return $orig_get_path->("/my/custom/path");
 		} else { # preserve the original arguments
-			return $mock->original("get_path_for")->($path, @_);
+			return $orig_get_path->($path, @_);
 		}
 	});
 

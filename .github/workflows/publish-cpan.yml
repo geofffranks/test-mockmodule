@@ -9,11 +9,14 @@ jobs:
     name: Publish to CPAN
     runs-on: ubuntu-latest
     environment: Release
+    if: github.event_name == 'release' && github.ref_type == 'tag' && startsWith(github.ref, 'refs/tags/v')
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
       - name: update-version
+        env:
+          REF_NAME: ${{ github.ref_name }}
         run: |
-          sed -i "s/^\\\$VERSION = '.*';/\\\$VERSION = '${GITHUB_REF_NAME}';/" lib/Test/MockModule.pm
+          perl -i -pe 's/^\$VERSION = \x27.*\x27;/\$VERSION = \x27$ENV{REF_NAME}\x27;/' lib/Test/MockModule.pm
       - name: install cpanm and multiple modules
         uses: perl-actions/install-with-cpanm@v1
         with:
@@ -25,6 +28,7 @@ jobs:
             Scalar::Util
             SUPER
             Software::License
+            CPAN::Uploader
       - name: Configure
         run: perl Build.PL
       - name: Test
@@ -36,8 +40,11 @@ jobs:
       - name: Deliver locally
         run: ./Build dist
       - name: Upload to CPAN
-        id: upload
-        uses: thibaultduponchelle/action-upload-to-cpan@master
-        with:
-            username: ${{ secrets.USERNAME }}
-            password: ${{ secrets.PASSWORD }}
+        env:
+          CPAN_USERNAME: ${{ secrets.USERNAME }}
+          CPAN_PASSWORD: ${{ secrets.PASSWORD }}
+        run: |
+          umask 077
+          trap 'rm -f ~/.pause' EXIT
+          printf 'user %s\npassword %s\n' "$CPAN_USERNAME" "$CPAN_PASSWORD" > ~/.pause
+          cpan-upload Test-MockModule-*.tar.gz
