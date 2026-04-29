@@ -10,7 +10,7 @@ BEGIN {
 	use_ok('Test::MockModule') or BAIL_OUT "Could not load Test::MockModule. Giving up";
 }
 
-package Test_Package;
+package Test_Package; ## no critic (Modules::RequireFilenameMatchesPackage)
 our $VERSION=1;
 sub listify {
 	my ($lower, $upper) = @_;

@@ -48,7 +48,7 @@ done_testing();
 
 #----------------------------------------------------------------------
 
-package Mockee;
+package Mockee; ## no critic (Modules::RequireFilenameMatchesPackage)
 
 our $VERSION;
 BEGIN { $VERSION = 1 }

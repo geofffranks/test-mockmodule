@@ -4,11 +4,11 @@ use strict;
 use Test::More;
 use Test::Warnings;
 
-package Mockee;
+package Mockee; ## no critic (Modules::RequireFilenameMatchesPackage)
 
-sub good ($$);
+sub good ($$); ## no critic (Subroutines::ProhibitSubroutinePrototypes)
 
-sub good ($$) {
+sub good ($$) { ## no critic (Subroutines::ProhibitSubroutinePrototypes)
     my ( $bar, $baz ) = @_;
     return ( $bar + 1, $baz + 2 );
 }

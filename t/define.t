@@ -38,7 +38,7 @@ done_testing();
 
 #----------------------------------------------------------------------
 
-package Mockee;
+package Mockee; ## no critic (Modules::RequireFilenameMatchesPackage)
 
 our $VERSION;
 BEGIN { $VERSION = 1 }
@@ -47,7 +47,7 @@ sub existing_subroutine { 1 }
 
 1;
 
-package Mockee64;
+package Mockee64; ## no critic (Modules::RequireFilenameMatchesPackage)
 
 our $VERSION;
 BEGIN { $VERSION = 1 }
