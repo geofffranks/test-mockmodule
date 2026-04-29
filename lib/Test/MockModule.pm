@@ -614,20 +614,23 @@ one hardcoded argument pass to a function.
 	use Test::MockModule;
 
 	my $mock = Test::MockModule->new("MyModule");
+	# capture the original before mocking to avoid closing over $mock
+	my $orig_get_path = $mock->original("get_path_for");
 	# replace all calls to get_path_for using a different argument
 	$mock->redefine("get_path_for", sub {
-		return $mock->original("get_path_for")->("/my/custom/path");
+		return $orig_get_path->("/my/custom/path");
 	});
 
 	# or
 
+	my $orig_get_path = $mock->original("get_path_for");
 	$mock->redefine("get_path_for", sub {
 		my $path = shift;
 		if ( $path && $path eq "/a/b/c/d" ) {
 			# only alter calls with path set to "/a/b/c/d"
-			return $mock->original("get_path_for")->("/my/custom/path");
+			return $orig_get_path->("/my/custom/path");
 		} else { # preserve the original arguments
-			return $mock->original("get_path_for")->($path, @_);
+			return $orig_get_path->($path, @_);
 		}
 	});
 
