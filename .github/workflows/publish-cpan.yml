@@ -25,6 +25,7 @@ jobs:
             Scalar::Util
             SUPER
             Software::License
+            CPAN::Uploader
       - name: Configure
         run: perl Build.PL
       - name: Test
@@ -36,8 +37,7 @@ jobs:
       - name: Deliver locally
         run: ./Build dist
       - name: Upload to CPAN
-        id: upload
-        uses: thibaultduponchelle/action-upload-to-cpan@master
-        with:
-            username: ${{ secrets.USERNAME }}
-            password: ${{ secrets.PASSWORD }}
+        env:
+          CPAN_USERNAME: ${{ secrets.USERNAME }}
+          CPAN_PASSWORD: ${{ secrets.PASSWORD }}
+        run: cpan-upload -u "$CPAN_USERNAME" -p "$CPAN_PASSWORD" Test-MockModule-*.tar.gz
