@@ -141,6 +141,15 @@ sub mock {
 sub _mock {
 	my $self = shift;
 
+	# Lazily load Class::MOP::Method once if the target is a Moose class.
+	# Class::MOP is already loaded transitively whenever the target uses Moose,
+	# so this require is essentially a hash-lookup; we still hoist it out of
+	# the per-name install loop for clarity.
+	{
+		my $meta = _meta_for($self->{_package});
+		require Class::MOP::Method if $meta && $meta->isa('Class::MOP::Class');
+	}
+
 	while (my ($name, $value) = splice @_, 0, 2) {
 		my $code = sub { };
 		if (ref $value && reftype $value eq 'CODE') {
@@ -177,7 +186,6 @@ sub _mock {
 			}
 			TRACE("Installing mocked $sub_name via meta->add_method");
 			if ($meta->isa('Class::MOP::Class')) {
-				require Class::MOP::Method;
 				$meta->add_method(
 					$name,
 					Class::MOP::Method->wrap(

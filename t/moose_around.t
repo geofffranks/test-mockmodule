@@ -5,8 +5,9 @@ use lib "$FindBin::Bin/lib";
 use Test::More;
 
 BEGIN {
-    eval { require Moose; 1 }      or plan skip_all => "Moose not installed";
-    eval { require Class::Load; 1 } or plan skip_all => "Class::Load not installed";
+    eval { require Moose; 1 }           or plan skip_all => "Moose not installed";
+    eval { require Class::Load; 1 }     or plan skip_all => "Class::Load not installed";
+    eval { require Test::Exception; 1 } or plan skip_all => "Test::Exception not installed";
 }
 
 use Test::Exception;
