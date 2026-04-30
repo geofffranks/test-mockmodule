@@ -287,8 +287,31 @@ sub unmock {
 			next;
 		}
 
-		TRACE("Restoring original $sub_name");
-		_replace_sub($sub_name, $self->{_orig}{$name});
+		if ($self->{_meta_mocked}{$name}) {
+			my $meta = _meta_for($self->{_package});
+			my $orig_method = $self->{_meta_orig}{$name};
+			if ($meta && !$meta->is_immutable) {
+				if (defined $orig_method) {
+					TRACE("Restoring original $sub_name via meta->add_method");
+					$meta->add_method($name, $orig_method);
+				} else {
+					TRACE("Removing mocked $sub_name from meta (was inherited or absent)");
+					$meta->remove_method($name);
+					# remove_method does not always clear the symbol table;
+					# clear it explicitly so direct calls fall through to AUTOLOAD/parent.
+					_replace_sub($sub_name, undef);
+				}
+			} else {
+				# Meta became immutable between mock and unmock (rare); fall back.
+				_replace_sub($sub_name, $self->{_orig}{$name});
+			}
+			delete $self->{_meta_mocked}{$name};
+			delete $self->{_meta_orig}{$name};
+		} else {
+			TRACE("Restoring original $sub_name");
+			_replace_sub($sub_name, $self->{_orig}{$name});
+		}
+
 		delete $self->{_mocked}{$name};
 		delete $self->{_orig}{$name};
 		delete $self->{_defined}{$name};
