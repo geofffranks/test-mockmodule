@@ -21,10 +21,10 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - run: perl -V
       - name: install dependencies
-        uses: perl-actions/install-with-cpm@v1.8
+        uses: perl-actions/install-with-cpm@v2
         with:
           install: |
             Carp
@@ -70,7 +70,7 @@ jobs:
       image: perldocker/perl-tester:${{ matrix.perl-version }}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - run: perl -V
       - run: perl Build.PL
       - run: ./Build
