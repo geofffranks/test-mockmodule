@@ -166,8 +166,34 @@ sub _mock {
 			$self->{_orig}{$name} = \&$sub_name;
 			delete $self->{_defined}{$name};
 		}
-		TRACE("Installing mocked $sub_name");
-		_replace_sub($sub_name, $code);
+		my $meta = _meta_for($self->{_package});
+		if ($meta && !$meta->is_immutable) {
+			# Capture the original Method object from the meta-class so
+			# unmock() can restore it (or call remove_method when the
+			# method was inherited and not locally defined).
+			if (!$self->{_meta_mocked}{$name}) {
+				$self->{_meta_orig}{$name} = $meta->get_method($name);
+				$self->{_meta_mocked}{$name} = 1;
+			}
+			TRACE("Installing mocked $sub_name via meta->add_method");
+			if ($meta->isa('Class::MOP::Class')) {
+				require Class::MOP::Method;
+				$meta->add_method(
+					$name,
+					Class::MOP::Method->wrap(
+						$code,
+						name         => $name,
+						package_name => $self->{_package},
+					),
+				);
+			} else {
+				# Mouse: add_method accepts a plain coderef and wraps internally
+				$meta->add_method($name, $code);
+			}
+		} else {
+			TRACE("Installing mocked $sub_name");
+			_replace_sub($sub_name, $code);
+		}
 	}
 
 	return $self;
