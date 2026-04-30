@@ -331,6 +331,7 @@ sub unmock {
 		delete $self->{_mocked}{$name};
 		delete $self->{_orig}{$name};
 		delete $self->{_defined}{$name};
+		delete $self->{_warned_immutable}{$name};
 	}
 	return $self;
 }
