@@ -829,6 +829,48 @@ A stub for Log::Trace
 
 =back
 
+=head1 MOOSE AND MOUSE SUPPORT
+
+When the target package's metaclass is a C<Class::MOP::Class> (Moose) or
+C<Mouse::Meta::Class> (Mouse), C<Test::MockModule> registers mocks with
+the meta-object via C<add_method> in addition to installing them in the
+symbol table. This makes mocked methods visible to:
+
+=over 4
+
+=item * Moose role C<requires> checks (including dynamic role application
+via L<Moose::Util/apply_all_roles>).
+
+=item * Method modifier resolution (C<around>, C<before>, C<after>) on
+subclasses loaded after the mock is installed.
+
+=item * Other MOP-driven introspection that walks C<get_method> /
+C<get_method_list>.
+
+=back
+
+C<unmock> reverses the registration: if the original method existed on
+the class itself, it is restored via C<add_method>; if the method was
+inherited (or absent) before mocking, it is removed via
+C<remove_method> so inheritance lookup falls back to the parent.
+For Mouse classes (which lack a public C<remove_method> on
+C<Mouse::Meta::Class>), the mock entry is purged from the meta-class's
+internal method cache directly to achieve the same effect.
+
+If the target class is immutable (C<< $meta->is_immutable >> is true),
+C<Test::MockModule> falls back to symbol-table-only behavior and emits a
+warning. Call C<< Pkg->meta->make_mutable >> before mocking if you need
+MOP-aware behavior on an immutable class.
+
+=head2 Moo and other MOP-less object systems
+
+L<Moo>, L<Role::Tiny>, and L<Object::Pad> are not detected and not
+specially handled. Mocks on Moo classes still work for direct calls but
+will not be seen by role-application or method-modifier resolution for
+classes that consume Moo roles. As a workaround, mock the underlying
+package directly with C<no_auto =E<gt> 1> and explicit load ordering, or
+convert the affected class to Moose.
+
 =head1 SEE ALSO
 
 L<Test::MockObject::Extends>
