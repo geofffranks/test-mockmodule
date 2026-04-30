@@ -199,6 +199,15 @@ sub _mock {
 				$meta->add_method($name, $code);
 			}
 		} else {
+			if ($meta && $meta->is_immutable && !$self->{_warned_immutable}{$name}) {
+				$self->{_warned_immutable}{$name} = 1;
+				carp sprintf(
+					"Test::MockModule: package %s is immutable; mocking %s via symbol table only. "
+					. "Moose role/modifier resolution will not see the mock. "
+					. "Call %s->meta->make_mutable before mocking if MOP-aware behavior is needed.",
+					$self->{_package}, $name, $self->{_package},
+				);
+			}
 			TRACE("Installing mocked $sub_name");
 			_replace_sub($sub_name, $code);
 		}
