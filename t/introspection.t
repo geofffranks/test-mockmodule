@@ -2,13 +2,18 @@ use warnings;
 use strict;
 
 use Test::More;
-use Test::Warnings;
+use Test::Warnings qw(warning);
 
 BEGIN {
 	use_ok('Test::MockModule') or BAIL_OUT "Could not load Test::MockModule";
 }
 
+package Test_Intro_Parent; ## no critic (Modules::RequireFilenameMatchesPackage)
+our $VERSION = 1;
+sub inherited_only { 'inherited_value' }
+
 package Test_Intro; ## no critic (Modules::RequireFilenameMatchesPackage)
+our @ISA = ('Test_Intro_Parent');
 our $VERSION = 1;
 sub foo { 'real_foo' }
 sub bar { 'real_bar' }
@@ -90,6 +95,24 @@ ok(Test::MockModule->can('mocked_subs'), 'mocked_subs() exists');
 	my $orig = $mock->original('bar');
 	$mock->mock('bar', sub { 'prefix_' . $orig->() });
 	is(Test_Intro::bar(), 'prefix_real_bar', 'original() before mock enables safe wrapping');
+}
+
+# original() carps on invalid subroutine name
+{
+	my $mock = Test::MockModule->new('Test_Intro', no_auto => 1);
+	my $w = warning { eval { $mock->original('123bad') } };
+	like("$w", qr/Please provide a valid function name/,
+		'original() carps when subroutine name is invalid');
+}
+
+# original() falls through to SUPER for inherited subs not in target package (GH covers line 238)
+{
+	my $mock = Test::MockModule->new('Test_Intro', no_auto => 1);
+	my $orig = $mock->original('inherited_only');
+	is(ref $orig, 'CODE',
+		'original() returns coderef for inherited (parent-only) sub');
+	is($orig->(), 'inherited_value',
+		'original() returns parent sub when target package has no own copy');
 }
 
 done_testing;
