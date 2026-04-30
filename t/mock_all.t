@@ -8,7 +8,7 @@ use Test::MockModule;
 
 # Set up test package with multiple subs
 {
-    package MockAllTarget;
+    package MockAllTarget; ## no critic (Modules::RequireFilenameMatchesPackage)
     our $VERSION = 1;
 
     sub alpha   { return 'alpha' }
@@ -154,7 +154,7 @@ is( MockAllTarget::gamma(), 'gamma', 'gamma restored after handler mock goes out
     # Overload subs (starting with '(') should be skipped
     my $has_overload_sub = 0;
     {
-        no strict 'refs';
+        no strict 'refs'; ## no critic (TestingAndDebugging::ProhibitNoStrict)
         for my $name (keys %{'SpecialSubTarget::'}) {
             if ($name =~ /^\(/ && defined &{"SpecialSubTarget::$name"}) {
                 ok( !$mock->is_mocked($name), "overload sub '$name' is not mocked by mock_all" );

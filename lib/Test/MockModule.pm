@@ -192,7 +192,7 @@ sub mock_all {
 
 	my @subs;
 	{
-		no strict 'refs';
+		no strict 'refs'; ## no critic (TestingAndDebugging::ProhibitNoStrict)
 		@subs = sort grep {
 			defined &{"${package}::$_"}
 		} keys %{"${package}::"};
@@ -281,7 +281,8 @@ sub is_mocked {
 
 sub mocked_subs {
 	my $self = shift;
-	return sort keys %{$self->{_mocked}};
+	my @subs = sort keys %{$self->{_mocked}};
+	return @subs;
 }
 
 sub _full_name {

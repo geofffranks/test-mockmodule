@@ -8,7 +8,7 @@ BEGIN {
 	use_ok('Test::MockModule') or BAIL_OUT "Could not load Test::MockModule";
 }
 
-package Test_Intro;
+package Test_Intro; ## no critic (Modules::RequireFilenameMatchesPackage)
 our $VERSION = 1;
 sub foo { 'real_foo' }
 sub bar { 'real_bar' }
