@@ -303,14 +303,14 @@ sub _valid_subname {
 }
 
 sub _meta_for {
-    my $package = shift;
-    return undef unless defined $package && length $package;
-    return undef unless $package->can('meta');
-    my $meta = eval { $package->meta };
-    return undef unless ref $meta;
-    return $meta if $meta->isa('Class::MOP::Class');   # Moose
-    return $meta if $meta->isa('Mouse::Meta::Class');  # Mouse
-    return undef;
+	my $package = shift;
+	return unless defined $package && length $package;
+	return unless $package->can('meta');
+	my $meta = eval { $package->meta };
+	return unless ref $meta;
+	return $meta if $meta->isa('Class::MOP::Class');   # Moose
+	return $meta if $meta->isa('Mouse::Meta::Class');  # Mouse
+	return;
 }
 
 sub _replace_sub {
