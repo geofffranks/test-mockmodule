@@ -302,6 +302,17 @@ sub _valid_subname {
 	return $name =~ /^[a-z_]\w*$/i;
 }
 
+sub _meta_for {
+    my $package = shift;
+    return undef unless defined $package && length $package;
+    return undef unless $package->can('meta');
+    my $meta = eval { $package->meta };
+    return undef unless ref $meta;
+    return $meta if $meta->isa('Class::MOP::Class');   # Moose
+    return $meta if $meta->isa('Mouse::Meta::Class');  # Mouse
+    return undef;
+}
+
 sub _replace_sub {
 	my ($sub_name, $coderef) = @_;
 
