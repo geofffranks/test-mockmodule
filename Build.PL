@@ -26,7 +26,11 @@ my $builder = Module::Build->new(
 	},
 	test_requires => {
 		'Test::More'          => 0.88,
-		'Test::Warnings'      => 0
+		'Test::Warnings'      => 0,
+		'Test::Exception'     => 0,
+		'Class::Load'         => 0,
+		'Moose'               => 0,
+		'Mouse'               => 0,
 	},
 
 	add_to_cleanup => [
