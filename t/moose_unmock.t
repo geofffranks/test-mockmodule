@@ -41,6 +41,29 @@ use Test::MockModule;
         "local-orig: meta still has foo after unmock");
 }
 
+# Re-mock: mocking the same name twice must not lose the *true* original.
+# The second mock should replace the first mock body, but unmock should still
+# restore the pre-any-mock implementation -- not the first mock body.
+{
+    package Issue55::UnmockReMock;
+    use Moose;
+    sub foo { 'orig' }
+}
+{
+    my $mock = Test::MockModule->new('Issue55::UnmockReMock');
+    $mock->mock( foo => sub { 'first_mock' } );
+    is(Issue55::UnmockReMock->foo, 'first_mock', "re-mock: first mock active");
+
+    $mock->mock( foo => sub { 'second_mock' } );
+    is(Issue55::UnmockReMock->foo, 'second_mock', "re-mock: second mock replaces first");
+
+    $mock->unmock('foo');
+    is(Issue55::UnmockReMock->foo, 'orig',
+        "re-mock+unmock restores the true original, not the first mock");
+    ok(Issue55::UnmockReMock->meta->get_method('foo'),
+        "re-mock+unmock leaves meta with original method");
+}
+
 # Inherited-orig: mock adds method, unmock should remove it from child meta
 # so the inheritance lookup falls back to parent.
 {
