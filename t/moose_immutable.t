@@ -10,7 +10,7 @@ use Test::Warnings ':all';
 use Test::MockModule;
 
 {
-    package Issue55::Immutable;
+    package Issue55::Immutable; ## no critic (Modules::RequireFilenameMatchesPackage)
     use Moose;
     sub foo { 'real' }
     __PACKAGE__->meta->make_immutable;

@@ -11,19 +11,19 @@ use Test::MockModule;
 
 # Plain (non-Moose) package
 {
-    package PlainPkg;
+    package PlainPkg; ## no critic (Modules::RequireFilenameMatchesPackage)
     sub new { bless {}, shift }
 }
 
 # Moose package
 {
-    package MoosePkg;
+    package MoosePkg; ## no critic (Modules::RequireFilenameMatchesPackage)
     use Moose;
 }
 
 # Mouse package
 {
-    package MousePkg;
+    package MousePkg; ## no critic (Modules::RequireFilenameMatchesPackage)
     use Mouse;
 }
 

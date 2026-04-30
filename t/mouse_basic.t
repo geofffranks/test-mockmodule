@@ -12,25 +12,25 @@ use Test::Exception;
 use Test::MockModule;
 
 {
-    package Issue55::MouseRole;
+    package Issue55::MouseRole; ## no critic (Modules::RequireFilenameMatchesPackage)
     use Mouse::Role;
     requires 'foo';
 }
 
 {
-    package Issue55::MouseClass;
+    package Issue55::MouseClass; ## no critic (Modules::RequireFilenameMatchesPackage)
     use Mouse;
     sub foo { 'real_foo' }
     with 'Issue55::MouseRole';
 }
 
 {
-    package Issue55::MouseParent;
+    package Issue55::MouseParent; ## no critic (Modules::RequireFilenameMatchesPackage)
     use Mouse;
     sub bar { 'parent_bar' }
 }
 {
-    package Issue55::MouseChild;
+    package Issue55::MouseChild; ## no critic (Modules::RequireFilenameMatchesPackage)
     use Mouse;
     extends 'Issue55::MouseParent';
 }

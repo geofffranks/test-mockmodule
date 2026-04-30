@@ -12,26 +12,26 @@ use Test::MockModule;
 
 # Local method on a Moose class
 {
-    package Issue55::RedefineLocal;
+    package Issue55::RedefineLocal; ## no critic (Modules::RequireFilenameMatchesPackage)
     use Moose;
     sub foo { 'real_foo' }
 }
 
 # Inherited method (child has no local foo)
 {
-    package Issue55::RedefineParent;
+    package Issue55::RedefineParent; ## no critic (Modules::RequireFilenameMatchesPackage)
     use Moose;
     sub bar { 'parent_bar' }
 }
 {
-    package Issue55::RedefineChild;
+    package Issue55::RedefineChild; ## no critic (Modules::RequireFilenameMatchesPackage)
     use Moose;
     extends 'Issue55::RedefineParent';
 }
 
 # Empty class for define() coverage
 {
-    package Issue55::DefineTarget;
+    package Issue55::DefineTarget; ## no critic (Modules::RequireFilenameMatchesPackage)
     use Moose;
 }
 

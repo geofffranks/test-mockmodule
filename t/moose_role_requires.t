@@ -13,14 +13,14 @@ use Test::MockModule;
 
 # Role with a required method
 {
-    package Issue55::FooRole;
+    package Issue55::FooRole; ## no critic (Modules::RequireFilenameMatchesPackage)
     use Moose::Role;
     requires 'foo';
 }
 
 # Class implementing the role
 {
-    package Issue55::FooClass;
+    package Issue55::FooClass; ## no critic (Modules::RequireFilenameMatchesPackage)
     use Moose;
     sub foo { 'real_foo' }
     with 'Issue55::FooRole';
@@ -29,7 +29,7 @@ use Test::MockModule;
 # A second role that also requires foo — applied dynamically AFTER the mock,
 # which forces Moose to re-check requirements against the (mocked) class meta.
 {
-    package Issue55::AnotherFooRole;
+    package Issue55::AnotherFooRole; ## no critic (Modules::RequireFilenameMatchesPackage)
     use Moose::Role;
     requires 'foo';
     sub other { 'other' }

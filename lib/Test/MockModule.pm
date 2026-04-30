@@ -302,7 +302,13 @@ sub unmock {
 			if ($meta && !$meta->is_immutable) {
 				if (defined $orig_method) {
 					TRACE("Restoring original $sub_name via meta->add_method");
-					$meta->add_method($name, $orig_method);
+					# Older Mouse versions require a coderef and reject a
+					# Mouse::Meta::Method object; extract the body for Mouse.
+					# Moose accepts either a coderef or a Class::MOP::Method.
+					my $arg = $meta->isa('Mouse::Meta::Class')
+						? (ref($orig_method) eq 'CODE' ? $orig_method : $orig_method->body)
+						: $orig_method;
+					$meta->add_method($name, $arg);
 				} else {
 					TRACE("Removing mocked $sub_name from meta (was inherited or absent)");
 					if ($meta->can('remove_method')) {

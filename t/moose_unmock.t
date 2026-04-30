@@ -10,19 +10,19 @@ use Test::MockModule;
 
 # Local-orig case: parent has its own foo
 {
-    package Issue55::UnmockLocalOrig;
+    package Issue55::UnmockLocalOrig; ## no critic (Modules::RequireFilenameMatchesPackage)
     use Moose;
     sub foo { 'orig' }
 }
 
 # Inherited case: child has no local foo; inherits from parent
 {
-    package Issue55::UnmockParent;
+    package Issue55::UnmockParent; ## no critic (Modules::RequireFilenameMatchesPackage)
     use Moose;
     sub bar { 'parent_bar' }
 }
 {
-    package Issue55::UnmockInherited;
+    package Issue55::UnmockInherited; ## no critic (Modules::RequireFilenameMatchesPackage)
     use Moose;
     extends 'Issue55::UnmockParent';
 }
@@ -45,7 +45,7 @@ use Test::MockModule;
 # The second mock should replace the first mock body, but unmock should still
 # restore the pre-any-mock implementation -- not the first mock body.
 {
-    package Issue55::UnmockReMock;
+    package Issue55::UnmockReMock; ## no critic (Modules::RequireFilenameMatchesPackage)
     use Moose;
     sub foo { 'orig' }
 }
