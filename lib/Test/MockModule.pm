@@ -296,7 +296,14 @@ sub unmock {
 					$meta->add_method($name, $orig_method);
 				} else {
 					TRACE("Removing mocked $sub_name from meta (was inherited or absent)");
-					$meta->remove_method($name);
+					if ($meta->can('remove_method')) {
+						$meta->remove_method($name);
+					} else {
+						# Mouse::Meta::Class has no remove_method; purge the
+						# internal methods cache entry directly so that
+						# get_method() no longer finds the mocked entry.
+						delete $meta->{methods}{$name};
+					}
 					# remove_method does not always clear the symbol table;
 					# clear it explicitly so direct calls fall through to AUTOLOAD/parent.
 					_replace_sub($sub_name, undef);
