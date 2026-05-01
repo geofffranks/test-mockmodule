@@ -151,4 +151,116 @@ is(Stacked::foo(), 'original_foo', 'original restored after all objects destroye
     is($m2->original('foo')->(), 'first', 'm2 original is m1 mock');
 }
 
+# Re-mock by a non-top object: when the top unmocks, the non-top object's
+# most recent install should be active, not its initial install.
+{
+    my $m1 = Test::MockModule->new('Stacked');
+    $m1->mock('foo', sub { 'm1_v1' });
+
+    my $m2 = Test::MockModule->new('Stacked');
+    $m2->mock('foo', sub { 'm2' });
+    is(Stacked::foo(), 'm2', 're-mock setup: m2 active');
+
+    # m1 (non-top) re-mocks foo with a new value.
+    $m1->mock('foo', sub { 'm1_v2' });
+    is(Stacked::foo(), 'm1_v2', 'non-top re-mock takes effect immediately');
+
+    # m2 unmocks. Stack should restore m1's CURRENT install (m1_v2),
+    # not m1's initial install (m1_v1).
+    $m2->unmock('foo');
+    is(Stacked::foo(), 'm1_v2', 'top unmock restores non-top objects current install, not initial');
+
+    $m1->unmock('foo');
+    is(Stacked::foo(), 'original_foo', 'all unmocked: original restored');
+}
+
+# Re-mock by top object also stays consistent
+{
+    my $m1 = Test::MockModule->new('Stacked');
+    $m1->mock('foo', sub { 'a' });
+
+    my $m2 = Test::MockModule->new('Stacked');
+    $m2->mock('foo', sub { 'b1' });
+    $m2->mock('foo', sub { 'b2' });
+    is(Stacked::foo(), 'b2', 'top re-mock active');
+
+    $m2->unmock('foo');
+    is(Stacked::foo(), 'a', 'top unmock falls back to non-top install');
+}
+
+# Mid-stack unmock after a non-top re-mock must NOT leave the unmocked
+# layer's clobbered coderef installed at the symbol. The non-top re-mock
+# overwrote *Pkg::sub with the layer's installed coderef (per the documented
+# "most recent mock wins" contract), so when that layer is removed the
+# symbol must be restored to the layer that's still on top.
+{
+    my $m1 = Test::MockModule->new('Stacked');
+    $m1->mock('foo', sub { 'A' });
+
+    my $m2 = Test::MockModule->new('Stacked');
+    $m2->mock('foo', sub { 'B' });
+
+    # Non-top re-mock by m1 clobbers the symbol to C.
+    $m1->mock('foo', sub { 'C' });
+    is(Stacked::foo(), 'C', 'non-top re-mock clobbers symbol (documented)');
+
+    # m1 unmocks while m2 is still on top. Symbol must reflect m2's mock
+    # (the layer that should still be active), not m1's stale install.
+    $m1->unmock('foo');
+    is(Stacked::foo(), 'B',
+        'mid-stack unmock after non-top re-mock restores top layer');
+
+    $m2->unmock('foo');
+    is(Stacked::foo(), 'original_foo', 'all unmocked: original restored');
+}
+
+# Same shape as above but via the destructor path.
+{
+    my $m2;
+    {
+        my $m1 = Test::MockModule->new('Stacked');
+        $m1->mock('foo', sub { 'A' });
+
+        $m2 = Test::MockModule->new('Stacked');
+        $m2->mock('foo', sub { 'B' });
+
+        $m1->mock('foo', sub { 'C' });          # non-top re-mock
+        is(Stacked::foo(), 'C', 'destructor path: clobber visible');
+
+        # m1 destructed here as scope exits.
+    }
+    is(Stacked::foo(), 'B',
+        'mid-stack DESTROY after non-top re-mock restores top layer');
+
+    undef $m2;
+    is(Stacked::foo(), 'original_foo', 'destructor path: cleanup ok');
+}
+
+# Three-layer middle-layer re-mock then middle-layer unmock: top layer
+# must be re-installed; the bottom layer remains untouched and is restored
+# correctly when the top eventually unmocks.
+{
+    my $m1 = Test::MockModule->new('Stacked');
+    $m1->mock('foo', sub { 'L1' });
+
+    my $m2 = Test::MockModule->new('Stacked');
+    $m2->mock('foo', sub { 'L2' });
+
+    my $m3 = Test::MockModule->new('Stacked');
+    $m3->mock('foo', sub { 'L3' });
+
+    $m2->mock('foo', sub { 'L2_new' });        # middle re-mock; clobbers symbol
+    is(Stacked::foo(), 'L2_new', 'middle re-mock clobbers symbol');
+
+    $m2->unmock('foo');
+    is(Stacked::foo(), 'L3',
+        'mid-stack unmock with non-empty layer above restores top (L3)');
+
+    $m3->unmock('foo');
+    is(Stacked::foo(), 'L1', 'after L3 gone: L1 still active');
+
+    $m1->unmock('foo');
+    is(Stacked::foo(), 'original_foo', 'three-layer cleanup');
+}
+
 done_testing;
