@@ -197,24 +197,27 @@ sub _mock {
 				meta_orig => $meta_orig,
 			};
 		} else {
-			my $update_orig;
-			if ($self->{_defined}{$name} && defined &{$sub_name}) {
-				# GH #64: when redefining a sub that was created via define(),
-				# update _orig to the defined sub so unmock() restores it.
-				# Capture the value so the matching stack entry stays in sync.
-				$update_orig = \&$sub_name;
-				$self->{_orig}{$name} = $update_orig;
-				delete $self->{_defined}{$name};
-			}
-			# Re-mock by same object: update our stack entry's installed coderef
-			# so an above-layer unmock cascades to the correct (current) coderef.
-			# Also propagate any _orig update from the GH #64 path.
+			my $is_redefine_after_define = $self->{_defined}{$name};
+			delete $self->{_defined}{$name} if $is_redefine_after_define;
+
+			# Re-mock by same object: update our stack entry's installed
+			# coderef so an above-layer unmock cascades to the correct
+			# (current) coderef. GH #64: when this is a redefine of a sub
+			# created via define(), also update _orig and the entry's orig
+			# so unmock() restores the originally-defined sub. Use this
+			# layer's PRIOR installed coderef rather than \&{$sub_name} --
+			# with stacking, the symbol may currently hold another mock
+			# object's installed coderef rather than ours.
 			if (my $stack = $mock_subs{$sub_name}) {
 				my $my_id = refaddr($self);
 				for my $entry (@$stack) {
 					if ($entry->{id} == $my_id) {
+						if ($is_redefine_after_define) {
+							my $prior = $entry->{installed};
+							$self->{_orig}{$name} = $prior;
+							$entry->{orig} = $prior;
+						}
 						$entry->{installed} = $code;
-						$entry->{orig} = $update_orig if $update_orig;
 						last;
 					}
 				}
@@ -307,9 +310,14 @@ sub _restore_pre_mock {
 				# get_method() no longer finds the mocked entry.
 				delete $meta->{methods}{$name};
 			}
-			# remove_method does not always clear the symbol table; clear
-			# it explicitly so direct calls fall through to AUTOLOAD/parent.
-			_replace_sub($sub_name, undef);
+			# remove_method does not always clear the symbol table.
+			# When the layer captured a symbol-table orig (e.g. an earlier
+			# layer pushed via the symbol table while meta was immutable,
+			# then make_mutable purged the cached meta entry), restore that
+			# coderef so the method continues to resolve. When orig is
+			# undef the slot is cleared, so direct calls fall through to
+			# AUTOLOAD/parent.
+			_replace_sub($sub_name, $entry->{orig});
 		}
 	} else {
 		# Either the layer was a symbol-table push, or meta became immutable

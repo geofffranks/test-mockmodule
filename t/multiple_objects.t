@@ -263,4 +263,39 @@ is(Stacked::foo(), 'original_foo', 'original restored after all objects destroye
     is(Stacked::foo(), 'original_foo', 'three-layer cleanup');
 }
 
+# GH #64 contract under stacking: define() then a non-top re-mock by the
+# defining object must still restore the originally-defined sub when all
+# layers have been unmocked. Without the fix, the GH #64 path captures
+# \&{$sub_name} -- which is another object's installed coderef when we are
+# not at top of stack -- and unmock leaves THAT sibling coderef installed
+# instead of the defined sub.
+{
+    package Stacked64; ## no critic (Modules::RequireFilenameMatchesPackage)
+    our $VERSION = 1;
+    package main;
+    ok(!defined &Stacked64::wrapper, 'Stacked64::wrapper does not exist initially');
+
+    my $m1 = Test::MockModule->new('Stacked64', no_auto => 1);
+    $m1->define('wrapper', sub { 'defined_value' });
+
+    my $m2 = Test::MockModule->new('Stacked64', no_auto => 1);
+    $m2->mock('wrapper', sub { 'sibling_value' });
+
+    # m1 (non-top) redefines its own defined sub. Per the documented
+    # "most recent mock wins" contract, the symbol now holds m1's new
+    # coderef. The internal _orig bookkeeping must capture m1's PRIOR
+    # install ('defined_value'), not the symbol's current value
+    # ('sibling_value').
+    $m1->mock('wrapper', sub { 'redefined_value' });
+    is(Stacked64::wrapper(), 'redefined_value', 'GH #64 + stacking: m1 redef visible');
+
+    $m2->unmock('wrapper');
+    is(Stacked64::wrapper(), 'redefined_value',
+        'GH #64 + stacking: m1 redef stays visible after m2 unmocks');
+
+    $m1->unmock('wrapper');
+    is(Stacked64::wrapper(), 'defined_value',
+        'GH #64 + stacking: unmock restores the defined sub, not a siblings coderef');
+}
+
 done_testing;
