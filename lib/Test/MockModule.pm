@@ -2,7 +2,7 @@ package Test::MockModule;
 use warnings;
 use strict qw/subs vars/;
 use vars qw/$VERSION/;
-use Scalar::Util qw/reftype weaken refaddr/;
+use Scalar::Util qw/reftype refaddr/;
 use Carp;
 use SUPER;
 # This is now auto-updated at release time by the github action
