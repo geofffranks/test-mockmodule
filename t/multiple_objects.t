@@ -8,11 +8,11 @@ use Test::MockModule;
 use lib "t/lib";
 
 # Test package
-package Stacked;
+package Stacked; ## no critic (Modules::RequireFilenameMatchesPackage)
 our $VERSION = 1;
 sub foo { 'original_foo' }
 sub bar { 'original_bar' }
-package main;
+package main; ## no critic (Modules::RequireFilenameMatchesPackage)
 
 # Basic: new() returns distinct objects
 {
