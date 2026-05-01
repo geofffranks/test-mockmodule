@@ -159,4 +159,43 @@ use Test::MockModule;
         'inherited: child meta entry removed after full teardown');
 }
 
+# Edge case: immutable -> mutable transition between two mock objects.
+# m1 mocks while the class is immutable (symbol-table-only path), then the
+# user makes the class mutable, then m2 mocks via the meta path. On
+# mid-stack unmock of m1, the popped layer's meta_orig (undef, since m1
+# was symbol-only) must NOT clobber m2's captured meta_orig. Otherwise
+# the eventual top-of-stack restore removes the method instead of
+# restoring the original.
+{
+    package MooseMulti::Toggle; ## no critic (Modules::RequireFilenameMatchesPackage)
+    use Moose;
+    sub greet { 'orig_greet' }
+    __PACKAGE__->meta->make_immutable;
+}
+
+{
+    my $m1 = Test::MockModule->new('MooseMulti::Toggle');
+    {
+        local $SIG{__WARN__} = sub {};   # swallow the immutable carp
+        $m1->mock('greet', sub { 'A' });
+    }
+    is(MooseMulti::Toggle->greet, 'A', 'toggle: m1 mock active (symbol-only)');
+
+    MooseMulti::Toggle->meta->make_mutable;
+
+    my $m2 = Test::MockModule->new('MooseMulti::Toggle');
+    $m2->mock('greet', sub { 'B' });
+    is(MooseMulti::Toggle->greet, 'B', 'toggle: m2 mock active (meta path)');
+
+    $m1->unmock('greet');
+    is(MooseMulti::Toggle->greet, 'B',
+        'toggle: m2 mock still active after mid-stack m1 unmock');
+
+    $m2->unmock('greet');
+    is(MooseMulti::Toggle->greet, 'orig_greet',
+        'toggle: original restored after full teardown');
+    ok(MooseMulti::Toggle->meta->get_method('greet'),
+        'toggle: meta has greet again after full teardown');
+}
+
 done_testing;

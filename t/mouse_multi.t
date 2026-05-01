@@ -149,4 +149,38 @@ use Test::MockModule;
         'inherited: child meta entry removed after full teardown');
 }
 
+# Edge case: immutable -> mutable transition between two mock objects.
+# Mouse counterpart of the toggle test in t/moose_multi.t.
+{
+    package MouseMulti::Toggle; ## no critic (Modules::RequireFilenameMatchesPackage)
+    use Mouse;
+    sub greet { 'orig_greet' }
+    __PACKAGE__->meta->make_immutable;
+}
+
+{
+    my $m1 = Test::MockModule->new('MouseMulti::Toggle');
+    {
+        local $SIG{__WARN__} = sub {};   # swallow the immutable carp
+        $m1->mock('greet', sub { 'A' });
+    }
+    is(MouseMulti::Toggle->greet, 'A', 'toggle: m1 mock active (symbol-only)');
+
+    MouseMulti::Toggle->meta->make_mutable;
+
+    my $m2 = Test::MockModule->new('MouseMulti::Toggle');
+    $m2->mock('greet', sub { 'B' });
+    is(MouseMulti::Toggle->greet, 'B', 'toggle: m2 mock active (meta path)');
+
+    $m1->unmock('greet');
+    is(MouseMulti::Toggle->greet, 'B',
+        'toggle: m2 mock still active after mid-stack m1 unmock');
+
+    $m2->unmock('greet');
+    is(MouseMulti::Toggle->greet, 'orig_greet',
+        'toggle: original restored after full teardown');
+    ok(MouseMulti::Toggle->meta->get_method('greet'),
+        'toggle: meta has greet again after full teardown');
+}
+
 done_testing;
