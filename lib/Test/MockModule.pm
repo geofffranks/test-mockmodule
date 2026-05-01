@@ -46,7 +46,27 @@ sub _strict_mode {
     return 0;
 }
 
-my %mock_subs; # per-sub stack: { 'Pkg::sub' => [ { id => refaddr, orig => coderef }, ... ] }
+# Per-sub stack of live mock layers. Each entry:
+#   { id, orig, installed, is_meta, meta_orig }
+#
+#   id        = refaddr of the mock object owning the layer.
+#   orig      = coderef at *Pkg::sub immediately before this layer was pushed
+#                (or undef if no sub existed). On mid-stack unmock, the popped
+#                entry's orig cascades down to the next layer so the eventual
+#                stack-empty restore sees the right "pre-mock" state.
+#   installed = coderef this layer most recently installed. Updated on
+#                re-mock by the same object so that an above-layer unmock,
+#                or a mid-stack splice, can re-install the latest coderef.
+#   is_meta   = true if this layer was pushed while the package's metaclass
+#                was mutable (Moose Class::MOP::Class or Mouse::Meta::Class).
+#                Drives whether unmock restores via meta->add_method or via
+#                the symbol table.
+#   meta_orig = Method object (or undef) returned by $meta->get_method($name)
+#                immediately before this layer was pushed; only meaningful
+#                when is_meta is true. Cascaded on mid-stack unmock the same
+#                way as orig, so the bottom-of-stack restore can use the
+#                correct pre-any-mock meta state.
+my %mock_subs;
 sub new {
 	my ($class, $package, %args) = @_;
 
@@ -156,31 +176,52 @@ sub _mock {
 		TRACE("$name: $code");
 		croak "Invalid subroutine name: $name" unless _valid_subname($name);
 		my $sub_name = _full_name($self, $name);
+		my $meta     = _meta_for($self->{_package});
+		my $can_meta = $meta && !$meta->is_immutable;
+
 		if (!$self->{_mocked}{$name}) {
 			TRACE("Storing existing $sub_name");
 			$self->{_mocked}{$name} = 1;
 			my $orig = defined &{$sub_name} ? \&$sub_name : undef;
 			$self->{_orig}{$name} = $orig;
+			# get_method() can return an empty list (rather than undef) for
+			# methods that aren't locally defined; force scalar context so
+			# the anonymous hash gets exactly one value here.
+			my $meta_orig = $can_meta ? scalar $meta->get_method($name) : undef;
 			$mock_subs{$sub_name} ||= [];
 			push @{$mock_subs{$sub_name}}, {
-				id   => refaddr($self),
-				orig => $orig,
+				id        => refaddr($self),
+				orig      => $orig,
+				installed => $code,
+				is_meta   => $can_meta ? 1 : 0,
+				meta_orig => $meta_orig,
 			};
-		} elsif ($self->{_defined}{$name} && defined &{$sub_name}) {
-			# GH #64: when redefining a sub that was created via define(),
-			# update _orig to the defined sub so unmock() restores it
-			$self->{_orig}{$name} = \&$sub_name;
-			delete $self->{_defined}{$name};
-		}
-		my $meta = _meta_for($self->{_package});
-		if ($meta && !$meta->is_immutable) {
-			# Capture the original Method object from the meta-class so
-			# unmock() can restore it (or call remove_method when the
-			# method was inherited and not locally defined).
-			if (!$self->{_meta_mocked}{$name}) {
-				$self->{_meta_orig}{$name} = $meta->get_method($name);
-				$self->{_meta_mocked}{$name} = 1;
+		} else {
+			my $update_orig;
+			if ($self->{_defined}{$name} && defined &{$sub_name}) {
+				# GH #64: when redefining a sub that was created via define(),
+				# update _orig to the defined sub so unmock() restores it.
+				# Capture the value so the matching stack entry stays in sync.
+				$update_orig = \&$sub_name;
+				$self->{_orig}{$name} = $update_orig;
+				delete $self->{_defined}{$name};
 			}
+			# Re-mock by same object: update our stack entry's installed coderef
+			# so an above-layer unmock cascades to the correct (current) coderef.
+			# Also propagate any _orig update from the GH #64 path.
+			if (my $stack = $mock_subs{$sub_name}) {
+				my $my_id = refaddr($self);
+				for my $entry (@$stack) {
+					if ($entry->{id} == $my_id) {
+						$entry->{installed} = $code;
+						$entry->{orig} = $update_orig if $update_orig;
+						last;
+					}
+				}
+			}
+		}
+
+		if ($can_meta) {
 			TRACE("Installing mocked $sub_name via meta->add_method");
 			if ($meta->isa('Class::MOP::Class')) {
 				$meta->add_method(
@@ -211,6 +252,70 @@ sub _mock {
 	}
 
 	return $self;
+}
+
+# Install $entry->{installed} at *Pkg::$name, using the meta path when the
+# entry was originally pushed via meta and the metaclass is currently mutable;
+# otherwise fall back to the symbol table.
+sub _install_layer {
+	my ($self, $sub_name, $name, $entry) = @_;
+	my $meta = _meta_for($self->{_package});
+	if ($entry->{is_meta} && $meta && !$meta->is_immutable) {
+		if ($meta->isa('Class::MOP::Class')) {
+			$meta->add_method(
+				$name,
+				Class::MOP::Method->wrap(
+					$entry->{installed},
+					name         => $name,
+					package_name => $self->{_package},
+				),
+			);
+		} else {
+			$meta->add_method($name, $entry->{installed});
+		}
+	} else {
+		_replace_sub($sub_name, $entry->{installed});
+	}
+}
+
+# Restore the pre-any-mock state for the bottom-most (and now only) layer
+# being popped. Uses the entry's meta_orig when the layer was pushed via
+# meta, otherwise its symbol-table orig coderef.
+sub _restore_pre_mock {
+	my ($self, $sub_name, $name, $entry) = @_;
+	my $meta = _meta_for($self->{_package});
+	my $can_meta = $meta && !$meta->is_immutable;
+
+	if ($entry->{is_meta} && $can_meta) {
+		my $orig_method = $entry->{meta_orig};
+		if (defined $orig_method) {
+			TRACE("Restoring original $sub_name via meta->add_method");
+			# Older Mouse versions require a coderef and reject a
+			# Mouse::Meta::Method object; extract the body for Mouse.
+			# Moose accepts either a coderef or a Class::MOP::Method.
+			my $arg = $meta->isa('Mouse::Meta::Class')
+				? (ref($orig_method) eq 'CODE' ? $orig_method : $orig_method->body)
+				: $orig_method;
+			$meta->add_method($name, $arg);
+		} else {
+			TRACE("Removing mocked $sub_name from meta (was inherited or absent)");
+			if ($meta->can('remove_method')) {
+				$meta->remove_method($name);
+			} else {
+				# Mouse::Meta::Class has no remove_method; purge the
+				# internal methods cache entry directly so that
+				# get_method() no longer finds the mocked entry.
+				delete $meta->{methods}{$name};
+			}
+			# remove_method does not always clear the symbol table; clear
+			# it explicitly so direct calls fall through to AUTOLOAD/parent.
+			_replace_sub($sub_name, undef);
+		}
+	} else {
+		# Either the layer was a symbol-table push, or meta became immutable
+		# between mock and unmock. Fall back to the captured orig coderef.
+		_replace_sub($sub_name, $entry->{orig});
+	}
 }
 
 sub noop {
@@ -294,12 +399,7 @@ sub unmock {
 		}
 
 		TRACE("Restoring original $sub_name");
-
-		# Determine our position in the per-sub stack so we know whether
-		# to actually restore the symbol/meta or just cascade orig.
 		my $stack = $mock_subs{$sub_name};
-		my $is_top_pop = 1;
-		my $restore_orig = $self->{_orig}{$name};
 		if ($stack) {
 			my $my_id = refaddr($self);
 			my $idx;
@@ -311,60 +411,38 @@ sub unmock {
 			}
 			if (defined $idx) {
 				if ($idx == $#$stack) {
+					# Top of stack: restore the prior layer's installed
+					# coderef (via meta or symbol as the layer dictates),
+					# or fully restore the pre-mock state if no prior
+					# layer remains.
 					my $popped = pop @$stack;
-					$restore_orig = $popped->{orig};
-				} else {
-					# Mid-stack: cascade orig down so a later top-of-stack
-					# pop restores the right pre-mock state. The layer
-					# above still owns the symbol/meta, so don't restore.
-					$stack->[$idx + 1]{orig} = $stack->[$idx]{orig};
-					splice @$stack, $idx, 1;
-					$is_top_pop = 0;
-				}
-			}
-			delete $mock_subs{$sub_name} unless @$stack;
-		}
-
-		if (!$is_top_pop) {
-			# Mid-stack: the layer above owns symbol and meta. Just clean
-			# up our per-object meta bookkeeping.
-			delete $self->{_meta_mocked}{$name};
-			delete $self->{_meta_orig}{$name};
-		} elsif ($self->{_meta_mocked}{$name}) {
-			my $meta = _meta_for($self->{_package});
-			my $orig_method = $self->{_meta_orig}{$name};
-			if ($meta && !$meta->is_immutable) {
-				if (defined $orig_method) {
-					TRACE("Restoring original $sub_name via meta->add_method");
-					# Older Mouse versions require a coderef and reject a
-					# Mouse::Meta::Method object; extract the body for Mouse.
-					# Moose accepts either a coderef or a Class::MOP::Method.
-					my $arg = $meta->isa('Mouse::Meta::Class')
-						? (ref($orig_method) eq 'CODE' ? $orig_method : $orig_method->body)
-						: $orig_method;
-					$meta->add_method($name, $arg);
-				} else {
-					TRACE("Removing mocked $sub_name from meta (was inherited or absent)");
-					if ($meta->can('remove_method')) {
-						$meta->remove_method($name);
+					if (@$stack) {
+						$self->_install_layer($sub_name, $name, $stack->[-1]);
 					} else {
-						# Mouse::Meta::Class has no remove_method; purge the
-						# internal methods cache entry directly so that
-						# get_method() no longer finds the mocked entry.
-						delete $meta->{methods}{$name};
+						$self->_restore_pre_mock($sub_name, $name, $popped);
 					}
-					# remove_method does not always clear the symbol table;
-					# clear it explicitly so direct calls fall through to AUTOLOAD/parent.
-					_replace_sub($sub_name, undef);
+				} else {
+					# Mid-stack: cascade our orig (and meta_orig, when the
+					# layer above also used the meta path) down to the next
+					# entry so a later stack-empty restore sees the correct
+					# pre-any-mock state. Then remove ourselves and re-install
+					# the new top's installed coderef -- the symbol/meta may
+					# currently hold OUR installed coderef if we re-mocked
+					# after a higher layer was pushed, so we must explicitly
+					# restore the layer that should now be active.
+					$stack->[$idx + 1]{orig} = $stack->[$idx]{orig};
+					$stack->[$idx + 1]{meta_orig} = $stack->[$idx]{meta_orig}
+						if $stack->[$idx + 1]{is_meta};
+					splice @$stack, $idx, 1;
+					$self->_install_layer($sub_name, $name, $stack->[-1]);
 				}
 			} else {
-				# Meta became immutable between mock and unmock (rare); fall back.
-				_replace_sub($sub_name, $restore_orig);
+				# Defensive: not found in stack (shouldn't happen).
+				_replace_sub($sub_name, $self->{_orig}{$name});
 			}
-			delete $self->{_meta_mocked}{$name};
-			delete $self->{_meta_orig}{$name};
+			delete $mock_subs{$sub_name} unless @$stack;
 		} else {
-			_replace_sub($sub_name, $restore_orig);
+			_replace_sub($sub_name, $self->{_orig}{$name});
 		}
 
 		delete $self->{_mocked}{$name};
@@ -616,9 +694,14 @@ Multiple mock objects can coexist for the same package, each tracking its own
 mocked subroutines independently. When a mock object is destroyed (or goes out
 of scope), only the subroutines it mocked are restored.
 
-If two objects mock the same subroutine, the most recent mock takes effect.
-When that object is destroyed, the earlier mock is restored. When all mock
+If two objects mock the same subroutine, the most recent C<mock>/C<redefine>
+call wins regardless of stack position. When a mock object is destroyed (or
+unmocked), the layer below it on the stack is reactivated. When all mock
 objects for a subroutine are destroyed, the original subroutine is restored.
+
+Note: prior to v0.180.x, C<new()> returned the same object on subsequent calls
+for an already-mocked package. Tests relying on that singleton behavior should
+be updated.
 
 If there is no C<$VERSION> defined in C<$package>, the module will be
 automatically loaded. You can override this behaviour by setting the C<no_auto>
