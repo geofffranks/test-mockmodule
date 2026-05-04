@@ -1,3 +1,11 @@
+## 0.184.0 — 2026-05-04
+
+## What's Changed
+* fix: restore noop() to return 1 for backward compatibility by @Koan-Bot in https://github.com/geofffranks/test-mockmodule/pull/80
+
+
+**Full Changelog**: https://github.com/geofffranks/test-mockmodule/compare/0.183.0...0.184.0
+
 ## 0.183.0 — 2026-05-01
 
 ## What's Changed
