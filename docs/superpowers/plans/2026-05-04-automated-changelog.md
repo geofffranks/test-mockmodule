@@ -538,10 +538,13 @@ if [ "$VERSION_ONLY" -eq 1 ]; then
     exit 0
 fi
 
-# Extract body using awk: skip until first '## ', print until next '## '.
+# Extract body using awk. Section boundaries are '## X.Y.Z' headings only,
+# NOT just any '## ' — release bodies frequently contain '## What's Changed'
+# subheadings that must be preserved as body content, not treated as the next
+# section.
 awk '
     BEGIN { found = 0 }
-    /^## / {
+    /^## [0-9]+\.[0-9]+\.[0-9]+/ {
         if (!found) { found = 1; next }
         else exit
     }
