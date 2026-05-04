@@ -5,7 +5,7 @@
 # Args:
 #   --new-version <X.Y.Z>     Tag name to be created.
 #   --previous-tag <X.Y.Z>    Last released tag, used as comparison base.
-#   --target-commitish <ref>  Branch or commit (default: master).
+#   --target-commitish <ref>  Branch or commit (default: main).
 #
 # Output:
 #   Writes the markdown body to stdout. Exits 0 on success, non-zero on error.
@@ -14,7 +14,7 @@ set -euo pipefail
 
 NEW_VERSION=""
 PREVIOUS_TAG=""
-TARGET_COMMITISH="master"
+TARGET_COMMITISH="main"
 
 while [ $# -gt 0 ]; do
     case "$1" in
