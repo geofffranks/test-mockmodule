@@ -72,3 +72,18 @@ EOF
     fi
     rm -f "$bad"
 }
+
+test_extract_fails_with_missing_flag_value() {
+    # --changes-file at end of args (no value) should exit 2 with a clear message
+    local err exit_code
+    err=$("$EXTRACT" --changes-file 2>&1)
+    exit_code=$?
+    if [ "$exit_code" -ne 2 ]; then
+        echo "    expected exit 2, got $exit_code"
+        return 1
+    fi
+    if ! echo "$err" | grep -q 'requires a value'; then
+        echo "    expected error to mention 'requires a value', got: $err"
+        return 1
+    fi
+}

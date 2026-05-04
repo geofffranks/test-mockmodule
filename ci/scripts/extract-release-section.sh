@@ -25,8 +25,12 @@ VERSION_ONLY=0
 
 while [ $# -gt 0 ]; do
     case "$1" in
-        --changes-file) CHANGES_FILE=$2; shift 2 ;;
-        --out-file)     OUT_FILE=$2;     shift 2 ;;
+        --changes-file)
+            [ -n "${2-}" ] || { echo "extract-release-section: --changes-file requires a value" >&2; exit 2; }
+            CHANGES_FILE=$2; shift 2 ;;
+        --out-file)
+            [ -n "${2-}" ] || { echo "extract-release-section: --out-file requires a value" >&2; exit 2; }
+            OUT_FILE=$2; shift 2 ;;
         --version-only) VERSION_ONLY=1;  shift ;;
         *) echo "extract-release-section: unknown arg '$1'" >&2; exit 2 ;;
     esac
