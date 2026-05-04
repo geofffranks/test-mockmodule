@@ -42,4 +42,5 @@ gh api \
     -f "tag_name=${NEW_VERSION}" \
     -f "previous_tag_name=${PREVIOUS_TAG}" \
     -f "target_commitish=${TARGET_COMMITISH}" \
-    --jq '.body'
+    --jq '.body' \
+    | tr -d '\r'

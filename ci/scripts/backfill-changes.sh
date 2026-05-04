@@ -28,7 +28,9 @@ for v in "${VERSIONS[@]}"; do
     fi
 
     echo "backfill: fetching $v..."
-    body=$(gh release view "$v" --repo "$GITHUB_REPOSITORY" --json body --jq '.body')
+    # GitHub stores release bodies with CRLF line endings (from the web UI's
+    # textarea). Strip \r so the file in the CPAN tarball uses LF only.
+    body=$(gh release view "$v" --repo "$GITHUB_REPOSITORY" --json body --jq '.body' | tr -d '\r')
     date=$(gh release view "$v" --repo "$GITHUB_REPOSITORY" --json publishedAt --jq '.publishedAt' | cut -dT -f1)
 
     if [ -z "$body" ] || [ -z "$date" ]; then
