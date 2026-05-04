@@ -85,3 +85,4 @@
 
 # Avoid maintainer-only docs
 ^RELEASING\.md
+^docs\b

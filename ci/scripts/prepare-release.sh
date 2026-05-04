@@ -112,6 +112,18 @@ if [ ! -f Changes ]; then
     exit 1
 fi
 
+# Guard: Changes must already contain at least one '## X.Y.Z' heading so that
+# finalize-release's extract-release-section.sh has a bounded section to read.
+# If the file is in pre-backfill state (no '## X.Y.Z' headings anywhere),
+# extract-release-section would read to EOF and embed the entire legacy
+# changelog into the release body. Run ci/scripts/backfill-changes.sh and merge
+# that PR before triggering prepare-release for the first time.
+if ! grep -qE '^## [0-9]+\.[0-9]+\.[0-9]+' Changes; then
+    echo "prepare-release: Changes file has no '## X.Y.Z' heading. The file is in legacy format." >&2
+    echo "prepare-release: Run ci/scripts/backfill-changes.sh and merge that PR before the first release." >&2
+    exit 1
+fi
+
 NEW_CHANGES="$(mktemp -t prepare-release-changes.XXXXXX)"
 cat "$NEW_SECTION" Changes > "$NEW_CHANGES"
 mv "$NEW_CHANGES" Changes

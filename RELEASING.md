@@ -2,6 +2,27 @@
 
 Releases are driven by GitHub Actions. The maintainer's only manual step is clicking "Run workflow" and reviewing the resulting PR.
 
+## Prerequisites (one-time)
+
+Before triggering `prepare-release` for the first time, the `Changes` file must contain at least one `## X.Y.Z` section heading so that the extract step in `finalize-release` has a bounded section to read.
+
+To populate `Changes` with the four post-2024-08-29 releases (0.180.0–0.183.0) that shipped during the file's frozen period, run the one-shot backfill and merge its PR:
+
+```bash
+git checkout main
+git pull --ff-only
+git checkout -b chore/backfill-changes
+GITHUB_REPOSITORY=geofffranks/test-mockmodule \
+    GH_TOKEN=$(gh auth token) \
+    bash ci/scripts/backfill-changes.sh
+git add Changes
+git commit -m "chore: backfill Changes for releases 0.180.0-0.183.0"
+git push --set-upstream origin chore/backfill-changes
+gh pr create --base main --title "Backfill Changes for 0.180.0-0.183.0"
+```
+
+The script is idempotent — re-running on an already-backfilled file is a no-op. `prepare-release` itself fails loudly with a clear message if invoked before backfill.
+
 ## Step 1 — Trigger Prepare Release
 
 1. Go to **Actions → prepare-release** in GitHub.
