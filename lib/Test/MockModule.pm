@@ -6,7 +6,7 @@ use Scalar::Util qw/reftype refaddr/;
 use Carp;
 use SUPER;
 # This is now auto-updated at release time by the github action
-$VERSION = 'DEVELOP';
+$VERSION = '0.184.0';
 
 our $GLOBAL_STRICT_MODE;
 
