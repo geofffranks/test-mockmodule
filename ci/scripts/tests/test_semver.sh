@@ -59,3 +59,19 @@ test_semver_validate_rejects_v_prefix() {
         return 1
     fi
 }
+
+test_semver_validate_rejects_leading_zero_major() {
+    if semver_validate 01.0.0 >/dev/null 2>&1; then
+        return 1
+    fi
+}
+
+test_semver_validate_rejects_leading_zero_minor() {
+    if semver_validate 0.09.0 >/dev/null 2>&1; then
+        return 1
+    fi
+}
+
+test_semver_validate_accepts_zero_zero_zero() {
+    semver_validate 0.0.0
+}
