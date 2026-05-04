@@ -135,8 +135,11 @@ like($@, qr/Invalid package name/, ' ... croaks if package is undefined');
 	$mcgi->unmock('cookie');
 	$mcgi->unmock('Vars');
 	$mcgi->noop('cookie', 'Vars');
-	is(ExampleModule::cookie(), 1, 'now cookie does nothing');
-	is(ExampleModule::Vars(), 1, 'now Vars does nothing');
+	# GH #81 contract: noop() mocked subs MUST return 1 (truthy).
+	# Downstream callers (e.g. openSUSE packaging) depend on this — do not
+	# "fix" the assertion to undef without auditing the public-API impact.
+	is(ExampleModule::cookie(), 1, 'noop subs return 1 (GH #81 contract — DO NOT CHANGE)');
+	is(ExampleModule::Vars(),   1, 'noop subs return 1 (GH #81 contract — DO NOT CHANGE)');
 }
 
 isnt(ExampleModule::param(), 'This sub is mocked',

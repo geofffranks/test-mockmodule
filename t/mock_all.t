@@ -38,12 +38,15 @@ is( MockAllTarget::alpha(), 'alpha', 'alpha restored after mock object goes out 
 is( MockAllTarget::beta(), 'beta', 'beta restored after mock object goes out of scope' );
 
 # 2. noop mode
+# GH #81 contract: mock_all(noop => 1) MUST return 1 (truthy), to stay consistent
+# with noop() — see lib/Test/MockModule.pm POD. Do not "fix" these assertions to
+# undef without auditing the public-API impact.
 {
     my $mock = Test::MockModule->new('MockAllTarget');
     $mock->mock_all(noop => 1);
 
-    is( MockAllTarget::alpha(), 1, 'noop mode returns 1 (alpha)' );
-    is( MockAllTarget::beta(), 1, 'noop mode returns 1 (beta)' );
+    is( MockAllTarget::alpha(), 1, 'noop mode returns 1 (alpha) (GH #81 contract — DO NOT CHANGE)' );
+    is( MockAllTarget::beta(),  1, 'noop mode returns 1 (beta) (GH #81 contract — DO NOT CHANGE)' );
 }
 is( MockAllTarget::alpha(), 'alpha', 'alpha restored after noop mock goes out of scope' );
 

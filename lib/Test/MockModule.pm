@@ -915,8 +915,11 @@ go out of scope.
 
 =item noop($subroutine [, ...])
 
-Given a list of subroutine names, mocks each of them with a no-op subroutine. Handy
-for mocking methods you want to ignore!
+Given a list of subroutine names, mocks each of them with a no-op subroutine that
+returns C<1>. Handy for mocking methods you want to ignore!
+
+The C<1> return value is part of the public contract of this method (see GH #81)
+-- callers in the wild rely on it being truthy.
 
     # Neuter a list of methods in one go
     $module->noop('purge', 'updated');
