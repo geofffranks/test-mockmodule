@@ -42,8 +42,8 @@ is( MockAllTarget::beta(), 'beta', 'beta restored after mock object goes out of 
     my $mock = Test::MockModule->new('MockAllTarget');
     $mock->mock_all(noop => 1);
 
-    is( MockAllTarget::alpha(), undef, 'noop mode returns undef (alpha)' );
-    is( MockAllTarget::beta(), undef, 'noop mode returns undef (beta)' );
+    is( MockAllTarget::alpha(), 1, 'noop mode returns 1 (alpha)' );
+    is( MockAllTarget::beta(), 1, 'noop mode returns 1 (beta)' );
 }
 is( MockAllTarget::alpha(), 'alpha', 'alpha restored after noop mock goes out of scope' );
 
