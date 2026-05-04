@@ -331,7 +331,7 @@ sub noop {
 
     croak "noop is not allowed in strict mode. Please use define or redefine" if $self->_strict_mode();
 
-    $self->_mock($_,undef) for @_;
+    $self->_mock($_,1) for @_;
 
     return;
 }
@@ -354,7 +354,7 @@ sub mock_all {
 	my $make_handler = exists $opts{handler}
 		? sub { $opts{handler} }
 		: $opts{noop}
-			? sub { sub {} }
+			? sub { sub { 1 } }
 			: sub { my $n = shift; sub { croak "$n was not mocked" } };
 
 	# Skip special Perl subs that should never be blindly mocked:
@@ -939,10 +939,11 @@ Options:
 
 =item noop =E<gt> 1
 
-Mock all subroutines with a no-op (empty sub) instead of dying.
+Mock all subroutines with a no-op sub that returns C<1> instead of dying.
+This is consistent with C<noop()>.
 
     $module->mock_all(noop => 1);
-    Foo->bar();  # silently does nothing
+    Foo->bar();  # returns 1
 
 =item handler =E<gt> \&coderef
 
