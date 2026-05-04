@@ -96,7 +96,7 @@ jobs:
       - name: Run shellcheck
         run: |
           if [ -d ci/scripts ]; then
-            find ci/scripts -type f \( -name '*.sh' -o -name 'lib' \) -prune -o -type f -name '*.sh' -print0 \
+            find ci/scripts -type f -name '*.sh' -print0 \
               | xargs -0 -r shellcheck --shell=bash --severity=warning
           fi
 
