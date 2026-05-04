@@ -1,0 +1,61 @@
+#!/usr/bin/env bash
+# Tests for ci/scripts/lib/semver.sh
+
+# shellcheck source=../lib/semver.sh
+source "$REPO_ROOT/ci/scripts/lib/semver.sh"
+
+assert_eq() {
+    local expected=$1 actual=$2 msg=${3:-}
+    if [ "$expected" != "$actual" ]; then
+        echo "    expected: '$expected'"
+        echo "    actual:   '$actual'"
+        [ -n "$msg" ] && echo "    msg:      $msg"
+        return 1
+    fi
+}
+
+test_semver_bump_patch() {
+    assert_eq "0.183.1" "$(semver_bump 0.183.0 patch)"
+}
+
+test_semver_bump_minor() {
+    assert_eq "0.184.0" "$(semver_bump 0.183.0 minor)"
+    assert_eq "0.184.0" "$(semver_bump 0.183.5 minor)"
+}
+
+test_semver_bump_major() {
+    assert_eq "1.0.0" "$(semver_bump 0.183.0 major)"
+    assert_eq "1.0.0" "$(semver_bump 0.183.5 major)"
+}
+
+test_semver_bump_strips_v_prefix_input() {
+    assert_eq "0.184.0" "$(semver_bump v0.183.0 minor)"
+}
+
+test_semver_bump_rejects_unknown_part() {
+    if semver_bump 0.183.0 huge >/dev/null 2>&1; then
+        return 1
+    fi
+}
+
+test_semver_bump_rejects_non_semver() {
+    if semver_bump "not-a-version" minor >/dev/null 2>&1; then
+        return 1
+    fi
+}
+
+test_semver_validate_accepts() {
+    semver_validate 0.183.0
+}
+
+test_semver_validate_rejects_missing_part() {
+    if semver_validate 0.183 >/dev/null 2>&1; then
+        return 1
+    fi
+}
+
+test_semver_validate_rejects_v_prefix() {
+    if semver_validate v0.183.0 >/dev/null 2>&1; then
+        return 1
+    fi
+}
