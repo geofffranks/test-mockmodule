@@ -335,7 +335,7 @@ semver_bump() {
 - [ ] **Step 4: Run tests — verify they pass**
 
 Run: `bash ci/scripts/tests/run.sh`
-Expected: `Results: 9 passed, 0 failed`.
+Expected: `Results: 12 passed, 0 failed` (9 originally specified + 3 leading-zero coverage tests added during code review).
 
 - [ ] **Step 5: Lint**
 
@@ -558,7 +558,7 @@ chmod +x ci/scripts/extract-release-section.sh
 - [ ] **Step 5: Run tests — verify they pass**
 
 Run: `bash ci/scripts/tests/run.sh`
-Expected: previous 9 + 5 new = `Results: 14 passed, 0 failed`.
+Expected: previous 12 + 5 new = `Results: 17 passed, 0 failed`.
 
 - [ ] **Step 6: Lint**
 
@@ -830,7 +830,7 @@ Expected: no output, exit 0.
 - [ ] **Step 3: Run shell tests to confirm no regressions**
 
 Run: `bash ci/scripts/tests/run.sh`
-Expected: `Results: 14 passed, 0 failed`.
+Expected: `Results: 17 passed, 0 failed`.
 
 - [ ] **Step 4: DRY_RUN smoke test from a clean checkout**
 
@@ -1090,7 +1090,7 @@ Expected: `OK`.
 - [ ] **Step 3: Run shell tests to confirm no regressions**
 
 Run: `bash ci/scripts/tests/run.sh`
-Expected: `Results: 14 passed, 0 failed`.
+Expected: `Results: 17 passed, 0 failed`.
 
 - [ ] **Step 4: Commit**
 
@@ -1191,7 +1191,7 @@ Expected: no output, exit 0.
 - [ ] **Step 3: Confirm tests still pass**
 
 Run: `bash ci/scripts/tests/run.sh`
-Expected: `Results: 14 passed, 0 failed`.
+Expected: `Results: 17 passed, 0 failed`.
 
 - [ ] **Step 4: Commit (script only — running it is a separate task)**
 
@@ -1460,7 +1460,7 @@ No circular dependencies. Tasks 7, 8, 9, 10 are independent of each other and co
 ## Done criteria
 
 - [ ] All 11 tasks complete and committed.
-- [ ] `bash ci/scripts/tests/run.sh` reports `14 passed, 0 failed`.
+- [ ] `bash ci/scripts/tests/run.sh` reports `17 passed, 0 failed`.
 - [ ] `actionlint .github/workflows/*.yml` exits 0.
 - [ ] `shellcheck --shell=bash --severity=warning ci/scripts/**/*.sh` exits 0.
 - [ ] `prepare-release.yml` has been triggered manually at least once on a non-master test branch (or fork) and produced an opened release PR with the correct `Changes` diff.
