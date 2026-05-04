@@ -119,6 +119,10 @@ rm -f "$NEW_SECTION"
 
 # 5. Bump $VERSION in lib/Test/MockModule.pm.
 perl -i -pe "s/^\\\$VERSION = '.*';/\\\$VERSION = '${NEW_VERSION}';/" lib/Test/MockModule.pm
+if ! grep -qF "\$VERSION = '${NEW_VERSION}';" lib/Test/MockModule.pm; then
+    echo "prepare-release: failed to update \$VERSION in lib/Test/MockModule.pm (regex didn't match — has the line format changed?)" >&2
+    exit 1
+fi
 
 # 6. Commit on release branch.
 run git config user.name  "$GIT_USER_NAME"
