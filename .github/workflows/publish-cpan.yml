@@ -1,22 +1,68 @@
 name: Publish to CPAN
 
 on:
-  release:
-    types: [created]
+  workflow_run:
+    workflows: [finalize-release]
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag to publish to CPAN"
+        required: true
+        type: string
+
+concurrency:
+  group: publish-cpan-${{ inputs.tag || github.event.workflow_run.id }}
+  cancel-in-progress: false
 
 jobs:
-  publish-ui:
+  publish:
     name: Publish to CPAN
     runs-on: ubuntu-latest
     environment: Release
-    if: github.event_name == 'release' && github.ref_type == 'tag'
+    if: |
+      github.event_name == 'workflow_dispatch'
+      || github.event.workflow_run.conclusion == 'success'
+    permissions:
+      contents: read
+      actions: read
     steps:
+      - name: Resolve tag (workflow_dispatch)
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          INPUT_TAG: ${{ inputs.tag }}
+        run: |
+          set -euo pipefail
+          [ -n "$INPUT_TAG" ] || { echo "publish-cpan: empty input tag" >&2; exit 1; }
+          echo "TAG=$INPUT_TAG" >> "$GITHUB_ENV"
+
+      - name: Download release-tag artifact (workflow_run)
+        if: github.event_name == 'workflow_run'
+        uses: actions/download-artifact@v4
+        with:
+          name: release-tag
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: ${{ runner.temp }}/release-tag
+
+      - name: Resolve tag (workflow_run)
+        if: github.event_name == 'workflow_run'
+        run: |
+          set -euo pipefail
+          TAG=$(tr -d '[:space:]' < "$RUNNER_TEMP/release-tag/tag.txt")
+          [ -n "$TAG" ] || { echo "publish-cpan: empty tag artifact" >&2; exit 1; }
+          echo "TAG=$TAG" >> "$GITHUB_ENV"
+
       - uses: actions/checkout@v6
+        with:
+          ref: ${{ env.TAG }}
+
       - name: update-version
         env:
-          REF_NAME: ${{ github.ref_name }}
+          REF_NAME: ${{ env.TAG }}
         run: |
           perl -i -pe 's/^\$VERSION = \x27.*\x27;/\$VERSION = \x27$ENV{REF_NAME}\x27;/' lib/Test/MockModule.pm
+
       - name: install cpanm and multiple modules
         uses: perl-actions/install-with-cpanm@v2
         with:
@@ -29,12 +75,13 @@ jobs:
             SUPER
             Software::License
             CPAN::Uploader
+
       - name: Configure
         run: perl Build.PL
       - name: Test
         run: ./Build test
       - name: Build
-        run: ./Build 
+        run: ./Build
       - name: Build Manifest
         run: ./Build manifest
       - name: Deliver locally
