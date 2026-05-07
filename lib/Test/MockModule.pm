@@ -2,7 +2,7 @@ package Test::MockModule;
 use warnings;
 use strict qw/subs vars/;
 use vars qw/$VERSION/;
-use Scalar::Util qw/reftype refaddr/;
+use Scalar::Util qw/reftype refaddr weaken/;
 use PadWalker ();
 use Carp;
 use SUPER;
@@ -100,6 +100,15 @@ sub _detect_self_capture {
 #                way as orig, so the bottom-of-stack restore can use the
 #                correct pre-any-mock meta state.
 my %mock_subs;
+
+# Per-package weak registry for opt-in singleton mode (GH #83 escape hatch).
+# Pre-0.180 behavior: new() with singleton => 1 returns the existing object
+# for a package if one is alive. Weak ref so unmocked-and-GC'd objects
+# release the slot naturally; alive-via-leak objects (the GH #83 case)
+# stay reachable, which is exactly what we want -- subsequent new() calls
+# return the same $mock so user mock() calls overwrite the leaked closure.
+my %singleton;
+
 sub new {
 	my ($class, $package, %args) = @_;
 
@@ -107,6 +116,11 @@ sub new {
 	unless (_valid_package($package)) {
 		$package = 'undef' unless defined $package;
 		croak "Invalid package name $package";
+	}
+
+	if ($args{singleton} && $singleton{$package}) {
+		TRACE("Reusing singleton MockModule object for $package");
+		return $singleton{$package};
 	}
 
 	unless ($package eq "CORE::GLOBAL" || $package eq 'main' || $args{no_auto} || ${"$package\::VERSION"}) {
@@ -120,6 +134,12 @@ sub new {
 		_package => $package,
 		_mocked  => {},
 	}, $class;
+
+	if ($args{singleton}) {
+		$singleton{$package} = $self;
+		weaken($singleton{$package});
+	}
+
 	return $self;
 }
 
