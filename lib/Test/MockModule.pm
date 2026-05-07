@@ -586,6 +586,8 @@ sub reset_for {
 		delete $mock_subs{$sub_name};
 	}
 
+	delete $singleton{$package};
+
 	return;
 }
 

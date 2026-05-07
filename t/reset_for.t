@@ -3,6 +3,7 @@ use strict;
 
 use Test::More;
 use Test::MockModule;
+use Scalar::Util qw(refaddr);
 
 package Tgt::ResetFor;
 our $VERSION = 1;
@@ -85,6 +86,23 @@ package main;
 
     eval { Test::MockModule->reset_for('123Invalid') };
     like($@, qr/Invalid package name/, 'numeric-leading package name croaks');
+}
+
+# 6. reset_for clears the singleton registry too
+{
+    my $first = Test::MockModule->new('Tgt::ResetFor', singleton => 1);
+    $first->mock('greet', sub { 'first_singleton' });
+    is(Tgt::ResetFor::greet(), 'first_singleton', 'first singleton mock active');
+
+    Test::MockModule->reset_for('Tgt::ResetFor');
+
+    # After reset_for, the singleton entry should be cleared too.
+    # A subsequent singleton => 1 call should NOT return the same object.
+    my $second = Test::MockModule->new('Tgt::ResetFor', singleton => 1);
+    isnt(Scalar::Util::refaddr($first), Scalar::Util::refaddr($second),
+        'reset_for invalidates the singleton registry entry');
+    is(Tgt::ResetFor::greet(), 'hello',
+        'sub still restored after reset_for');
 }
 
 done_testing;
