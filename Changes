@@ -1,8 +1,8 @@
 ## 0.185.0 — 2026-05-07
 
 ## What's Changed
-* Fix/gh 83 revert distinct default by @geofffranks in https://github.com/geofffranks/test-mockmodule/pull/85
-
+* Fix GH #83: Reverts to pre v0.181.0 behavior. new() returns singleton-per-package by default again. pass distinct => 1 for v0.181's fresh-object-per-call behavior.
+* New: Test::MockModule->original_for($pkg, $sub) — call the original sub from inside a mock closure without capturing $mock.
 
 **Full Changelog**: https://github.com/geofffranks/test-mockmodule/compare/0.184.0...0.185.0
 
