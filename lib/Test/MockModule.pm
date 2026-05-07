@@ -526,6 +526,55 @@ sub unmock_all {
 	return;
 }
 
+# GH #83 escape hatch: class-level cleanup helper. Walks %mock_subs and
+# restores every mocked sub belonging to $package, regardless of which
+# mock object owns the entry. Useful in test teardown blocks where the
+# closure-captures-$mock pattern has leaked mocks past their lexical
+# scope and DESTROY is never going to fire.
+sub reset_for {
+	my ($class, $package) = @_;
+	croak "Invalid package name " . (defined $package ? $package : 'undef')
+		unless _valid_package($package);
+
+	my $prefix = "${package}::";
+	my @sub_names = grep { 0 == index($_, $prefix) } keys %mock_subs;
+
+	for my $sub_name (@sub_names) {
+		my $stack = $mock_subs{$sub_name};
+		next unless $stack && @$stack;
+
+		# Bottom of stack carries the truly-original orig (cascade in
+		# unmock() preserves this invariant on mid-stack splices).
+		my $bottom = $stack->[0];
+		my ($name) = $sub_name =~ /::([^:]+)$/;
+
+		my $meta = _meta_for($package);
+		my $can_meta = $meta && !$meta->is_immutable;
+		if ($bottom->{is_meta} && $can_meta) {
+			my $orig_method = $bottom->{meta_orig};
+			if (defined $orig_method) {
+				my $arg = $meta->isa('Mouse::Meta::Class')
+					? (ref($orig_method) eq 'CODE' ? $orig_method : $orig_method->body)
+					: $orig_method;
+				$meta->add_method($name, $arg);
+			} else {
+				if ($meta->can('remove_method')) {
+					$meta->remove_method($name);
+				} else {
+					delete $meta->{methods}{$name};
+				}
+				_replace_sub($sub_name, $bottom->{orig});
+			}
+		} else {
+			_replace_sub($sub_name, $bottom->{orig});
+		}
+
+		delete $mock_subs{$sub_name};
+	}
+
+	return;
+}
+
 sub is_mocked {
 	my ($self, $name) = @_;
 
