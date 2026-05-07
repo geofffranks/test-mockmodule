@@ -460,6 +460,28 @@ sub original {
 	return defined $self->{_orig}{$name} ? $self->{_orig}{$name} : $self->{_package}->super($name);
 }
 
+# GH #83-safe alternative to $mock->original(). Class method; takes
+# strings, returns the truly-original coderef from the per-package
+# registry (or the live sub if not mocked). Lets user closures avoid
+# capturing $mock, which is the root cause of the GH #83 DESTROY-leak.
+sub original_for {
+	my ($class, $package, $name) = @_;
+	croak "Invalid package name " . (defined $package ? $package : 'undef')
+		unless _valid_package($package);
+	croak 'Please provide a valid function name'
+		unless _valid_subname($name);
+
+	my $sub_name = "${package}::${name}";
+	my $stack = $mock_subs{$sub_name};
+	if ($stack && @$stack) {
+		my $orig = $stack->[0]{orig};
+		return $orig if defined $orig;
+	}
+	no strict 'refs'; ## no critic (TestingAndDebugging::ProhibitNoStrict)
+	return \&$sub_name if defined &{$sub_name};
+	return undef;
+}
+
 sub unmock {
 	my ( $self, @names ) = @_;
 
