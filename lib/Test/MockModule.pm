@@ -337,12 +337,16 @@ sub _install_layer {
 	}
 }
 
-# Restore the pre-any-mock state for the bottom-most (and now only) layer
-# being popped. Uses the entry's meta_orig when the layer was pushed via
-# meta, otherwise its symbol-table orig coderef.
-sub _restore_pre_mock {
-	my ($self, $sub_name, $name, $entry) = @_;
-	my $meta = _meta_for($self->{_package});
+# Shared restore-from-stack-entry helper. Takes $package explicitly so it
+# can be called both from instance methods (passing $self->{_package}) and
+# class methods (passing the user-provided package). The $entry hashref
+# carries is_meta / meta_orig / orig fields recorded at install time;
+# this routine dispatches to the meta path or the symbol-table path
+# accordingly. Single source of truth for the restore semantics so
+# _restore_pre_mock and reset_for cannot drift apart.
+sub _restore_entry {
+	my ($package, $sub_name, $name, $entry) = @_;
+	my $meta = _meta_for($package);
 	my $can_meta = $meta && !$meta->is_immutable;
 
 	if ($entry->{is_meta} && $can_meta) {
@@ -380,6 +384,13 @@ sub _restore_pre_mock {
 		# between mock and unmock. Fall back to the captured orig coderef.
 		_replace_sub($sub_name, $entry->{orig});
 	}
+}
+
+# Restore the pre-any-mock state for the bottom-most (and now only) layer
+# being popped. Delegates to the shared _restore_entry helper.
+sub _restore_pre_mock {
+	my ($self, $sub_name, $name, $entry) = @_;
+	return _restore_entry($self->{_package}, $sub_name, $name, $entry);
 }
 
 sub noop {
@@ -548,26 +559,7 @@ sub reset_for {
 		my $bottom = $stack->[0];
 		my ($name) = $sub_name =~ /::([^:]+)$/;
 
-		my $meta = _meta_for($package);
-		my $can_meta = $meta && !$meta->is_immutable;
-		if ($bottom->{is_meta} && $can_meta) {
-			my $orig_method = $bottom->{meta_orig};
-			if (defined $orig_method) {
-				my $arg = $meta->isa('Mouse::Meta::Class')
-					? (ref($orig_method) eq 'CODE' ? $orig_method : $orig_method->body)
-					: $orig_method;
-				$meta->add_method($name, $arg);
-			} else {
-				if ($meta->can('remove_method')) {
-					$meta->remove_method($name);
-				} else {
-					delete $meta->{methods}{$name};
-				}
-				_replace_sub($sub_name, $bottom->{orig});
-			}
-		} else {
-			_replace_sub($sub_name, $bottom->{orig});
-		}
+		_restore_entry($package, $sub_name, $name, $bottom);
 
 		delete $mock_subs{$sub_name};
 	}
