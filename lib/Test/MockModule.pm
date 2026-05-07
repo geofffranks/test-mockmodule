@@ -86,15 +86,19 @@ sub new {
 		croak "Invalid package name $package";
 	}
 
-	if (!$args{distinct} && $singleton{$package}) {
-		TRACE("Reusing singleton MockModule object for $package");
-		return $singleton{$package};
-	}
-
+	# Auto-load the package BEFORE consulting the singleton cache.
+	# Otherwise a singleton seeded by an earlier `no_auto => 1` caller
+	# would silently deny later default-mode callers the module load
+	# they expect from `new()` (Koan-Bot review on PR #85).
 	unless ($package eq "CORE::GLOBAL" || $package eq 'main' || $args{no_auto} || ${"$package\::VERSION"}) {
 		(my $load_package = "$package.pm") =~ s{::}{/}g;
 		TRACE("$package is empty, loading $load_package");
 		require $load_package;
+	}
+
+	if (!$args{distinct} && $singleton{$package}) {
+		TRACE("Reusing singleton MockModule object for $package");
+		return $singleton{$package};
 	}
 
 	TRACE("Creating MockModule object for $package");

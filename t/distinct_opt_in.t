@@ -90,4 +90,31 @@ package main; ## no critic (Modules::RequireFilenameMatchesPackage)
         'subsequent default new() still returns the singleton');
 }
 
+# 6. Regression for Koan-Bot review on PR #85: a singleton seeded by an
+#    earlier `no_auto => 1` call must NOT deny later default-mode
+#    callers the module-load they expect. The autoload check runs
+#    before the singleton cache is consulted.
+{
+    # Use a fresh package name so no prior subtest seeded the singleton.
+    # The package has no $VERSION and no .pm on disk; a default new()
+    # call would normally die trying to require it. We seed a singleton
+    # with no_auto => 1, then verify the second default-mode call still
+    # tries to load the module.
+    my $pkg = 'Tgt::AutoloadAfterSingleton';
+    {
+        my $first = Test::MockModule->new($pkg, no_auto => 1);
+        ok($first, "no_auto seed: singleton created without loading $pkg");
+    }
+    # Second call WITHOUT no_auto should attempt the require and die
+    # because the package has no .pm. If the autoload-bypass bug is
+    # present, this would silently return the cached object instead.
+    my $err;
+    eval { Test::MockModule->new($pkg) };
+    $err = $@;
+    # require turns Pkg::Sub into Pkg/Sub.pm in its error message
+    (my $path = $pkg) =~ s{::}{/}g;
+    like($err, qr/Can't locate \Q$path\E\.pm/,
+        'default new() after no_auto-seed singleton still attempts autoload');
+}
+
 done_testing;
