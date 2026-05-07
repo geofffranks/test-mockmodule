@@ -714,6 +714,16 @@ Test::MockModule - Override subroutines in a module for unit testing
 		$foo->foo(); # prints "Foo!\n"
 	}
 
+    # Calling the original from inside a mock (GH #83-safe pattern):
+    use Test::MockModule;
+
+    my $mock = Test::MockModule->new('Foo');
+    $mock->mock('foo', sub {
+        # Capture only strings -- not $mock -- so DESTROY can fire
+        # at end of scope.
+        return Test::MockModule->original_for('Foo', 'foo')->(@_) + 1;
+    });
+
     # If you want to prevent noop and mock from working, you can
     # load Test::MockModule in strict mode.
 
@@ -835,6 +845,21 @@ automatically loaded. You can override this behaviour by setting the C<no_auto>
 option:
 
 	my $mock = Test::MockModule->new('Module::Name', no_auto => 1);
+
+The C<singleton> option restores pre-v0.180 per-package singleton
+behavior, intended as an escape hatch for code hit by GH #83 (closures
+capturing C<$mock> prevent C<DESTROY>-driven cleanup):
+
+    my $mock = Test::MockModule->new('Module::Name', singleton => 1);
+    # A subsequent new('Module::Name', singleton => 1) returns the
+    # same object, so re-mocking replaces the leaked closure rather
+    # than stacking on top of it.
+
+Default behavior remains "fresh object per call" (see GH #48). The
+singleton registry is process-global per-package; tests sharing a
+process should be aware that a leaked singleton from one test file may
+be visible to a later one. Pair with C<< Test::MockModule->reset_for($pkg) >>
+in test teardown if you need to guarantee a clean slate.
 
 =item get_package()
 
@@ -982,6 +1007,30 @@ Returns the original (unmocked) subroutine. If the subroutine is not currently
 mocked, returns the existing subroutine directly instead of warning. This makes
 it safe to call C<original()> before or after mocking.
 
+B<GH #83 caveat>: calling C<< $mock->original >> from inside a mock
+closure causes the closure to capture C<$mock>. The captured strong
+reference prevents C<DESTROY> from firing when C<$mock> goes out of
+scope, so the mock leaks into subsequent tests. Two ways to avoid:
+
+=over 4
+
+=item *
+
+Capture C<< $mock->original >> in a lexical B<before> calling
+C<< $mock->mock >> (existing recommendation).
+
+=item *
+
+Use the class-method form C<< Test::MockModule->original_for($pkg, $sub) >>
+inside the closure, which captures only strings.
+
+=back
+
+C<Test::MockModule> emits a runtime warning when this pattern is
+detected at C<mock()> install time. The warning is suppressed when the
+mock object was created with C<< singleton => 1 >>, since that mode is
+itself a documented workaround for the leak.
+
 Here is a sample how to wrap a function with custom arguments using the original subroutine.
 This is useful when you cannot (do not) want to alter the original code to abstract
 one hardcoded argument pass to a function.
@@ -1020,6 +1069,23 @@ one hardcoded argument pass to a function.
 		}
 	});
 
+=item original_for($package, $subroutine)
+
+Class-method counterpart to C<original()>. Returns the truly-original
+coderef for C<$package::$subroutine> without requiring a C<$mock> object.
+Use this from inside a mock closure to avoid capturing C<$mock>, which
+otherwise prevents C<DESTROY>-driven unmock and leaks the mock past its
+lexical scope (GH #83):
+
+    my $mock = Test::MockModule->new('MyModule');
+    $mock->mock('greet', sub {
+        # Closure captures only strings -- $mock can be GC'd at end of scope
+        return Test::MockModule
+            ->original_for('MyModule', 'greet')->(@_) . '_suffix';
+    });
+
+Returns C<undef> if the named sub does not exist. Stacked mocks return
+the truly-original (pre-any-mock) coderef, not the layer below.
 
 =item unmock($subroutine [, ...])
 
@@ -1031,6 +1097,29 @@ C<unmock()> in one go.
 Restores all the subroutines in the package that were mocked. This is
 automatically called when all C<Test::MockModule> objects for the given package
 go out of scope.
+
+=item reset_for($package)
+
+Class-method teardown helper. Walks the per-sub registry and restores
+every mocked sub in C<$package>, regardless of which C<$mock> object
+owns it. Intended for test teardown blocks where the closure-captures-
+C<$mock> pattern (GH #83) has prevented mocks from being destroyed at
+scope exit:
+
+    END {
+        Test::MockModule->reset_for('My::Target::Module');
+    }
+
+No-op when called for a package with no active mocks. Croaks on invalid
+package names.
+
+B<Caveat>: any C<$mock> object that owned an entry in the cleared
+registry has stale internal state (C<_mocked> / C<_orig> hashes still
+think the sub is mocked). If your test code holds a reference to such a
+C<$mock> after C<reset_for> -- e.g. via C<< singleton => 1 >> lookup --
+do not call C<unmock> / C<unmock_all> on it, as those will try to
+restore an already-restored symbol. Treat C<reset_for> as a one-shot
+end-of-scope cleanup.
 
 =item noop($subroutine [, ...])
 
