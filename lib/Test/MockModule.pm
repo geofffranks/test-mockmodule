@@ -414,6 +414,32 @@ sub original {
 	return defined $self->{_orig}{$name} ? $self->{_orig}{$name} : $self->{_package}->super($name);
 }
 
+# Class-method counterpart to $mock->original(). Takes strings, returns
+# the truly-original coderef from the per-package registry (or the live
+# sub if not mocked). Lets user closures reach the original sub without
+# capturing $mock -- the closure-capture pattern that drives the GH #83
+# DESTROY-leak under `distinct => 1` mode.
+sub original_for {
+	my ($class, $package, $name) = @_;
+	croak "Invalid package name " . (defined $package ? $package : 'undef')
+		unless _valid_package($package);
+	croak 'Please provide a valid function name'
+		unless _valid_subname($name);
+
+	my $sub_name = "${package}::${name}";
+	my $stack = $mock_subs{$sub_name};
+	if ($stack && @$stack) {
+		# Bottom-of-stack orig is the truly-original. May be undef when
+		# the sub was created via define() -- that is expected. Falling
+		# through to \&$sub_name would hand back the active mock (an
+		# infinite-recursion footgun for closures wrapping their orig).
+		return $stack->[0]{orig};
+	}
+	no strict 'refs'; ## no critic (TestingAndDebugging::ProhibitNoStrict)
+	return \&$sub_name if defined &{$sub_name};
+	return;
+}
+
 sub unmock {
 	my ( $self, @names ) = @_;
 
