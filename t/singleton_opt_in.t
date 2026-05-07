@@ -71,4 +71,28 @@ package main;
         'second singleton call returns the singleton');
 }
 
+# 6. _detect_self_capture warning is suppressed under singleton mode
+{
+    my @warnings;
+    local $SIG{__WARN__} = sub { push @warnings, $_[0] };
+
+    package Tgt::SingletonNoWarn;
+    our $VERSION = 1;
+    sub greet { 'hi' }
+    package main;
+
+    my $mock = Test::MockModule->new(
+        'Tgt::SingletonNoWarn', no_auto => 1, singleton => 1
+    );
+    $mock->mock('greet', sub {
+        # Closure captures $mock -- would normally trigger GH #83 warning,
+        # but singleton mode is the documented workaround so the warning
+        # would be noise.
+        return $mock->original('greet')->() . '_x';
+    });
+    is(scalar(@warnings), 0,
+        'no GH #83 warning when singleton mode is used (documented workaround)')
+        or diag explain \@warnings;
+}
+
 done_testing;

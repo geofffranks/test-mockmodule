@@ -58,6 +58,7 @@ sub _strict_mode {
 sub _detect_self_capture {
 	my ($self, $code, $name) = @_;
 	return unless ref($code) eq 'CODE';
+	return if $self->{_singleton};
 	my $self_addr = refaddr($self);
 	my $closed = eval { PadWalker::closed_over($code) };
 	return unless ref $closed eq 'HASH';
@@ -136,6 +137,7 @@ sub new {
 	}, $class;
 
 	if ($args{singleton}) {
+		$self->{_singleton} = 1;
 		$singleton{$package} = $self;
 		weaken($singleton{$package});
 	}
