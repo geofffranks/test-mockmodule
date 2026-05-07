@@ -1,3 +1,11 @@
+## 0.185.0 — 2026-05-07
+
+## What's Changed
+* Fix/gh 83 revert distinct default by @geofffranks in https://github.com/geofffranks/test-mockmodule/pull/85
+
+
+**Full Changelog**: https://github.com/geofffranks/test-mockmodule/compare/0.184.0...0.185.0
+
 ## 0.184.0 — 2026-05-04
 
 ## What's Changed
