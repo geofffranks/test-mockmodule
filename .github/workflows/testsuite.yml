@@ -29,6 +29,7 @@ jobs:
           install: |
             Carp
             Module::Build
+            PadWalker
             Scalar::Util
             SUPER
             Test::More
@@ -72,6 +73,11 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - run: perl -V
+      - name: install dependencies
+        uses: perl-actions/install-with-cpm@v2
+        with:
+          install: |
+            PadWalker
       - run: perl Build.PL
       - run: ./Build
       - run: ./Build test

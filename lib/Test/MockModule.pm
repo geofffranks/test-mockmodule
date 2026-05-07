@@ -58,6 +58,14 @@ sub _strict_mode {
 sub _detect_self_capture {
 	my ($self, $code, $name) = @_;
 	return unless ref($code) eq 'CODE';
+	# Suppress the warning under singleton mode. Singleton mode does NOT
+	# break the closure's strong reference to $self -- the leak still
+	# exists -- but it makes the leak harmless: subsequent new(...,
+	# singleton => 1) calls return the same $self, and subsequent
+	# mock()s overwrite the leaked closure in the symbol table, so
+	# tests written against pre-0.180 semantics behave correctly. The
+	# user has explicitly opted into this trade-off; warning here would
+	# be noise.
 	return if $self->{_singleton};
 	my $self_addr = refaddr($self);
 	my $closed = eval { PadWalker::closed_over($code) };
@@ -474,8 +482,13 @@ sub original_for {
 	my $sub_name = "${package}::${name}";
 	my $stack = $mock_subs{$sub_name};
 	if ($stack && @$stack) {
-		my $orig = $stack->[0]{orig};
-		return $orig if defined $orig;
+		# Bottom-of-stack orig is the truly-original coderef. May be
+		# undef when the sub was created via define() -- the caller
+		# wanted "no pre-mock implementation" and that's exactly what
+		# we return. Falling through to \&$sub_name would hand back the
+		# active mock (an infinite-recursion footgun for closures that
+		# wrap their own original).
+		return $stack->[0]{orig};
 	}
 	no strict 'refs'; ## no critic (TestingAndDebugging::ProhibitNoStrict)
 	return \&$sub_name if defined &{$sub_name};
@@ -1086,8 +1099,11 @@ lexical scope (GH #83):
             ->original_for('MyModule', 'greet')->(@_) . '_suffix';
     });
 
-Returns C<undef> if the named sub does not exist. Stacked mocks return
-the truly-original (pre-any-mock) coderef, not the layer below.
+Returns C<undef> when there is no pre-mock implementation -- either
+because the sub does not exist at all, or because it was created via
+C<define()> (i.e. the bottom-of-stack has no original to restore).
+Stacked mocks return the truly-original (pre-any-mock) coderef, not
+the layer below.
 
 =item unmock($subroutine [, ...])
 

@@ -71,6 +71,7 @@ jobs:
             Test::Warnings
             Test::More
             Carp
+            PadWalker
             Scalar::Util
             SUPER
             Software::License

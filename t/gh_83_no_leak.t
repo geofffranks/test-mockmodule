@@ -62,6 +62,10 @@ subtest 'V2: redefine + original_for' => sub {
 
 # V3: explicit unmock_all (workaround already worked pre-fix; regression guard)
 subtest 'V3: explicit unmock_all still works' => sub {
+    # Closure intentionally captures $mock (the GH #83 pattern) to verify
+    # that explicit unmock_all bypasses the leak. Suppress the resulting
+    # _detect_self_capture warning so it doesn't pollute prove output.
+    local $SIG{__WARN__} = sub {};
     make_pkg('Tgt_V3');
     my @results;
     my $run = sub {
@@ -163,6 +167,10 @@ subtest 'V8: arrayref capture' => sub {
 
 # V9: user-level Scalar::Util::weaken (workaround already worked; guard)
 subtest 'V9: user-level weaken still works' => sub {
+    # Closure captures $weak (a weakened ref to $mock). Same refaddr as
+    # $mock, so _detect_self_capture warns even though the user has
+    # already mitigated. Suppress to keep prove output clean.
+    local $SIG{__WARN__} = sub {};
     make_pkg('Tgt_V9');
     my @results;
     my $run = sub {

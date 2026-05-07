@@ -28,6 +28,10 @@ package main;
 
 # 2. reset_for unsticks the GH #83 leak pattern
 {
+    # Closure intentionally captures $mock (the GH #83 pattern) to verify
+    # that explicit reset_for bypasses the leak. Suppress the resulting
+    # _detect_self_capture warning so it doesn't pollute prove output.
+    local $SIG{__WARN__} = sub {};
     my @results;
     my $run = sub {
         my ($label) = @_;

@@ -78,4 +78,23 @@ package main;
     is($code, undef, 'returns undef for nonexistent sub');
 }
 
+# 7. define()'d subs: original_for must return undef, not the live mock.
+#    The bottom-of-stack orig is undef in this case (the sub had no
+#    pre-mock implementation). Falling through to \&{$sub_name} would
+#    return the active mock and cause infinite recursion if the user's
+#    closure called original_for to "wrap" itself.
+{
+    package Tgt::DefineOnly;
+    our $VERSION = 1;
+    package main;
+
+    my $mock = Test::MockModule->new('Tgt::DefineOnly');
+    $mock->define('brandnew', sub { 'mocked' });
+    is(Tgt::DefineOnly::brandnew(), 'mocked', 'define()d sub callable');
+
+    my $orig = Test::MockModule->original_for('Tgt::DefineOnly', 'brandnew');
+    is($orig, undef,
+        'original_for returns undef for define()d sub (no pre-mock impl, no fall-through to live mock)');
+}
+
 done_testing;
