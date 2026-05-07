@@ -743,26 +743,41 @@ increases over time.
 
 =item new($package[, %options])
 
-Returns a new object that will mock subroutines in the specified C<$package>.
-Each call to C<new()> returns a distinct object, even for the same package.
-Multiple mock objects can coexist for the same package, each tracking its own
-mocked subroutines independently. When a mock object is destroyed (or goes out
-of scope), only the subroutines it mocked are restored.
+Returns a singleton-per-package mock object. Two calls to
+C<< Test::MockModule->new('Foo') >> return the same object as long as the
+first one is still alive; this preserves the long-standing pre-v0.181
+contract that the documented C<< $mock->original >> from-inside-closure
+pattern depends on (see GH #83).
 
-If two objects mock the same subroutine, the most recent C<mock>/C<redefine>
-call wins regardless of stack position. When a mock object is destroyed (or
-unmocked), the layer below it on the stack is reactivated. When all mock
-objects for a subroutine are destroyed, the original subroutine is restored.
+Pass C<< distinct => 1 >> to opt into the v0.181 GH #48 semantics --
+each call returns a fresh object, multiple mock objects coexist on the
+same package, and the per-sub stack handles multi-mock layering:
 
-Note: prior to v0.180.x, C<new()> returned the same object on subsequent calls
-for an already-mocked package. Tests relying on that singleton behavior should
-be updated.
+	my $m1 = Test::MockModule->new('Module::Name', distinct => 1);
+	my $m2 = Test::MockModule->new('Module::Name', distinct => 1);
+	# $m1 and $m2 are independent. Tests that need this layering must
+	# opt in explicitly.
+
+Under C<distinct> mode the most recent C<mock>/C<redefine> call wins
+regardless of stack position; when a mock object is destroyed, the
+layer below it on the stack is reactivated; when all mock objects for
+a subroutine are destroyed, the original subroutine is restored.
 
 If there is no C<$VERSION> defined in C<$package>, the module will be
-automatically loaded. You can override this behaviour by setting the C<no_auto>
-option:
+automatically loaded. You can override this behaviour by setting the
+C<no_auto> option:
 
 	my $mock = Test::MockModule->new('Module::Name', no_auto => 1);
+
+B<GH #83 caveat for distinct mode>: a closure that captures C<$mock>
+(typically by calling C<< $mock->original(...) >> inside the mock body)
+prevents C<DESTROY> from firing when C<$mock> goes out of scope, so
+the mock leaks past its lexical scope. The default (singleton) mode
+makes this leak harmless by re-using the same object on subsequent
+C<new()> calls. Under C<< distinct => 1 >>, prefer the class-method
+form C<< Test::MockModule->original_for($pkg, $sub) >> from inside
+closures so they capture only strings, or capture
+C<< $mock->original(...) >> in a lexical B<before> calling C<mock()>.
 
 =item get_package()
 
@@ -947,6 +962,29 @@ one hardcoded argument pass to a function.
 			return $orig_get_path->($path, @_);
 		}
 	});
+
+
+=item original_for($package, $subroutine)
+
+Class-method counterpart to C<original()>. Returns the truly-original
+coderef for C<$package::$subroutine> from the per-package registry,
+or the live sub via the symbol table if not currently mocked. Returns
+C<undef> if no sub by that name exists. Croaks on invalid package or
+sub names.
+
+The motivating use case is letting closures reach the original sub
+without capturing C<$mock> -- the closure-capture pattern that drives
+the GH #83 leak under C<< distinct => 1 >> mode:
+
+	my $mock = Test::MockModule->new('MyModule', distinct => 1);
+	$mock->mock('greet', sub {
+		# Closure captures only strings -- $mock can be GC'd at scope end
+		return Test::MockModule
+			->original_for('MyModule', 'greet')->(@_) . '_suffix';
+	});
+
+For stacked mocks, returns the truly-original (pre-any-mock) coderef,
+not the layer below.
 
 
 =item unmock($subroutine [, ...])
