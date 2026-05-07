@@ -19,8 +19,9 @@ my $builder = Module::Build->new(
 		'Module::Build' => '0.4234',
 	},
 	requires => {
-	    'perl'                => 5.006,
+	    'perl'                => 5.008001,
 		'Carp'                => 0,
+		'PadWalker'           => '2.0',
 		'Scalar::Util'        => 0,
 		'SUPER'               => '1.20',
 	},
