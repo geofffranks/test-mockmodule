@@ -16,8 +16,8 @@ package main; ## no critic (Modules::RequireFilenameMatchesPackage)
 
 # Basic: new() returns distinct objects
 {
-    my $m1 = Test::MockModule->new('Stacked');
-    my $m2 = Test::MockModule->new('Stacked');
+    my $m1 = Test::MockModule->new('Stacked', distinct => 1);
+    my $m2 = Test::MockModule->new('Stacked', distinct => 1);
     isnt($m1, $m2, 'new() returns distinct objects for same package');
     is($m1->get_package, 'Stacked', '... both target the same package');
     is($m2->get_package, 'Stacked', '... both target the same package');
@@ -25,13 +25,13 @@ package main; ## no critic (Modules::RequireFilenameMatchesPackage)
 
 # Independent mocking: different subs on different objects
 {
-    my $m1 = Test::MockModule->new('Stacked');
+    my $m1 = Test::MockModule->new('Stacked', distinct => 1);
     $m1->mock('foo', sub { 'mock1_foo' });
     is(Stacked::foo(), 'mock1_foo', 'first object mocks foo');
     is(Stacked::bar(), 'original_bar', 'bar is untouched');
 
     {
-        my $m2 = Test::MockModule->new('Stacked');
+        my $m2 = Test::MockModule->new('Stacked', distinct => 1);
         $m2->mock('bar', sub { 'mock2_bar' });
         is(Stacked::foo(), 'mock1_foo', 'foo still mocked by first object');
         is(Stacked::bar(), 'mock2_bar', 'bar mocked by second object');
@@ -45,12 +45,12 @@ is(Stacked::foo(), 'original_foo', 'foo restored after first object destroyed');
 
 # Stacked mocking: same sub, LIFO destruction order
 {
-    my $m1 = Test::MockModule->new('Stacked');
+    my $m1 = Test::MockModule->new('Stacked', distinct => 1);
     $m1->mock('foo', sub { 'layer1' });
     is(Stacked::foo(), 'layer1', 'first layer');
 
     {
-        my $m2 = Test::MockModule->new('Stacked');
+        my $m2 = Test::MockModule->new('Stacked', distinct => 1);
         $m2->mock('foo', sub { 'layer2' });
         is(Stacked::foo(), 'layer2', 'second layer overrides first');
     }
@@ -64,10 +64,10 @@ is(Stacked::foo(), 'original_foo', 'original restored after all objects destroye
 {
     my $m2;
     {
-        my $m1 = Test::MockModule->new('Stacked');
+        my $m1 = Test::MockModule->new('Stacked', distinct => 1);
         $m1->mock('foo', sub { 'layer1' });
 
-        $m2 = Test::MockModule->new('Stacked');
+        $m2 = Test::MockModule->new('Stacked', distinct => 1);
         $m2->mock('foo', sub { 'layer2' });
         is(Stacked::foo(), 'layer2', 'layer2 active');
     }
@@ -81,13 +81,13 @@ is(Stacked::foo(), 'original_foo', 'original restored after all objects destroye
 
 # Three layers
 {
-    my $m1 = Test::MockModule->new('Stacked');
+    my $m1 = Test::MockModule->new('Stacked', distinct => 1);
     $m1->mock('foo', sub { 'L1' });
 
-    my $m2 = Test::MockModule->new('Stacked');
+    my $m2 = Test::MockModule->new('Stacked', distinct => 1);
     $m2->mock('foo', sub { 'L2' });
 
-    my $m3 = Test::MockModule->new('Stacked');
+    my $m3 = Test::MockModule->new('Stacked', distinct => 1);
     $m3->mock('foo', sub { 'L3' });
 
     is(Stacked::foo(), 'L3', 'three layers: top wins');
@@ -107,10 +107,10 @@ is(Stacked::foo(), 'original_foo', 'original restored after all objects destroye
 
 # Explicit unmock interacts correctly with stack
 {
-    my $m1 = Test::MockModule->new('Stacked');
+    my $m1 = Test::MockModule->new('Stacked', distinct => 1);
     $m1->mock('foo', sub { 'A' });
 
-    my $m2 = Test::MockModule->new('Stacked');
+    my $m2 = Test::MockModule->new('Stacked', distinct => 1);
     $m2->mock('foo', sub { 'B' });
 
     is(Stacked::foo(), 'B', 'B is active');
@@ -124,10 +124,10 @@ is(Stacked::foo(), 'original_foo', 'original restored after all objects destroye
 
 # is_mocked is per-object
 {
-    my $m1 = Test::MockModule->new('Stacked');
+    my $m1 = Test::MockModule->new('Stacked', distinct => 1);
     $m1->mock('foo', sub { 'x' });
 
-    my $m2 = Test::MockModule->new('Stacked');
+    my $m2 = Test::MockModule->new('Stacked', distinct => 1);
 
     ok($m1->is_mocked('foo'), 'm1 reports foo as mocked');
     ok(!$m2->is_mocked('foo'), 'm2 does not report foo as mocked');
@@ -140,10 +140,10 @@ is(Stacked::foo(), 'original_foo', 'original restored after all objects destroye
 # original() returns the correct original per object
 {
     my $orig_foo = \&Stacked::foo;
-    my $m1 = Test::MockModule->new('Stacked');
+    my $m1 = Test::MockModule->new('Stacked', distinct => 1);
     $m1->mock('foo', sub { 'first' });
 
-    my $m2 = Test::MockModule->new('Stacked');
+    my $m2 = Test::MockModule->new('Stacked', distinct => 1);
     $m2->mock('foo', sub { 'second' });
 
     is($m1->original('foo'), $orig_foo, 'm1 original is the true original');
@@ -154,10 +154,10 @@ is(Stacked::foo(), 'original_foo', 'original restored after all objects destroye
 # Re-mock by a non-top object: when the top unmocks, the non-top object's
 # most recent install should be active, not its initial install.
 {
-    my $m1 = Test::MockModule->new('Stacked');
+    my $m1 = Test::MockModule->new('Stacked', distinct => 1);
     $m1->mock('foo', sub { 'm1_v1' });
 
-    my $m2 = Test::MockModule->new('Stacked');
+    my $m2 = Test::MockModule->new('Stacked', distinct => 1);
     $m2->mock('foo', sub { 'm2' });
     is(Stacked::foo(), 'm2', 're-mock setup: m2 active');
 
@@ -176,10 +176,10 @@ is(Stacked::foo(), 'original_foo', 'original restored after all objects destroye
 
 # Re-mock by top object also stays consistent
 {
-    my $m1 = Test::MockModule->new('Stacked');
+    my $m1 = Test::MockModule->new('Stacked', distinct => 1);
     $m1->mock('foo', sub { 'a' });
 
-    my $m2 = Test::MockModule->new('Stacked');
+    my $m2 = Test::MockModule->new('Stacked', distinct => 1);
     $m2->mock('foo', sub { 'b1' });
     $m2->mock('foo', sub { 'b2' });
     is(Stacked::foo(), 'b2', 'top re-mock active');
@@ -194,10 +194,10 @@ is(Stacked::foo(), 'original_foo', 'original restored after all objects destroye
 # "most recent mock wins" contract), so when that layer is removed the
 # symbol must be restored to the layer that's still on top.
 {
-    my $m1 = Test::MockModule->new('Stacked');
+    my $m1 = Test::MockModule->new('Stacked', distinct => 1);
     $m1->mock('foo', sub { 'A' });
 
-    my $m2 = Test::MockModule->new('Stacked');
+    my $m2 = Test::MockModule->new('Stacked', distinct => 1);
     $m2->mock('foo', sub { 'B' });
 
     # Non-top re-mock by m1 clobbers the symbol to C.
@@ -218,10 +218,10 @@ is(Stacked::foo(), 'original_foo', 'original restored after all objects destroye
 {
     my $m2;
     {
-        my $m1 = Test::MockModule->new('Stacked');
+        my $m1 = Test::MockModule->new('Stacked', distinct => 1);
         $m1->mock('foo', sub { 'A' });
 
-        $m2 = Test::MockModule->new('Stacked');
+        $m2 = Test::MockModule->new('Stacked', distinct => 1);
         $m2->mock('foo', sub { 'B' });
 
         $m1->mock('foo', sub { 'C' });          # non-top re-mock
@@ -240,13 +240,13 @@ is(Stacked::foo(), 'original_foo', 'original restored after all objects destroye
 # must be re-installed; the bottom layer remains untouched and is restored
 # correctly when the top eventually unmocks.
 {
-    my $m1 = Test::MockModule->new('Stacked');
+    my $m1 = Test::MockModule->new('Stacked', distinct => 1);
     $m1->mock('foo', sub { 'L1' });
 
-    my $m2 = Test::MockModule->new('Stacked');
+    my $m2 = Test::MockModule->new('Stacked', distinct => 1);
     $m2->mock('foo', sub { 'L2' });
 
-    my $m3 = Test::MockModule->new('Stacked');
+    my $m3 = Test::MockModule->new('Stacked', distinct => 1);
     $m3->mock('foo', sub { 'L3' });
 
     $m2->mock('foo', sub { 'L2_new' });        # middle re-mock; clobbers symbol
@@ -275,10 +275,10 @@ is(Stacked::foo(), 'original_foo', 'original restored after all objects destroye
     package main;
     ok(!defined &Stacked64::wrapper, 'Stacked64::wrapper does not exist initially');
 
-    my $m1 = Test::MockModule->new('Stacked64', no_auto => 1);
+    my $m1 = Test::MockModule->new('Stacked64', no_auto => 1, distinct => 1);
     $m1->define('wrapper', sub { 'defined_value' });
 
-    my $m2 = Test::MockModule->new('Stacked64', no_auto => 1);
+    my $m2 = Test::MockModule->new('Stacked64', no_auto => 1, distinct => 1);
     $m2->mock('wrapper', sub { 'sibling_value' });
 
     # m1 (non-top) redefines its own defined sub. Per the documented

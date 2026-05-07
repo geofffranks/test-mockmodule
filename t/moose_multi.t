@@ -22,11 +22,11 @@ use Test::MockModule;
 
 # LIFO unmock: top layer pops first, then bottom layer pops.
 {
-    my $m1 = Test::MockModule->new('MooseMulti::Local');
+    my $m1 = Test::MockModule->new('MooseMulti::Local', distinct => 1);
     $m1->mock('greet', sub { 'A' });
     is(MooseMulti::Local->greet, 'A', 'LIFO: m1 mock active');
 
-    my $m2 = Test::MockModule->new('MooseMulti::Local');
+    my $m2 = Test::MockModule->new('MooseMulti::Local', distinct => 1);
     $m2->mock('greet', sub { 'B' });
     is(MooseMulti::Local->greet, 'B', 'LIFO: m2 mock takes over');
 
@@ -44,10 +44,10 @@ use Test::MockModule;
 # pre-PR singleton implementation hid this case; the new design must keep
 # m2's mock active after m1 unmocks, and restore the original after both.
 {
-    my $m1 = Test::MockModule->new('MooseMulti::Local');
+    my $m1 = Test::MockModule->new('MooseMulti::Local', distinct => 1);
     $m1->mock('greet', sub { 'A' });
 
-    my $m2 = Test::MockModule->new('MooseMulti::Local');
+    my $m2 = Test::MockModule->new('MooseMulti::Local', distinct => 1);
     $m2->mock('greet', sub { 'B' });
     is(MooseMulti::Local->greet, 'B', 'non-LIFO: m2 active');
 
@@ -65,10 +65,10 @@ use Test::MockModule;
 # subsequent mid-stack unmock must hand control back to the still-living
 # top layer rather than leaving the stale install in the meta.
 {
-    my $m1 = Test::MockModule->new('MooseMulti::Local');
+    my $m1 = Test::MockModule->new('MooseMulti::Local', distinct => 1);
     $m1->mock('greet', sub { 'A' });
 
-    my $m2 = Test::MockModule->new('MooseMulti::Local');
+    my $m2 = Test::MockModule->new('MooseMulti::Local', distinct => 1);
     $m2->mock('greet', sub { 'B' });
 
     $m1->mock('greet', sub { 'C' });
@@ -89,10 +89,10 @@ use Test::MockModule;
 {
     my $m2;
     {
-        my $m1 = Test::MockModule->new('MooseMulti::Local');
+        my $m1 = Test::MockModule->new('MooseMulti::Local', distinct => 1);
         $m1->mock('greet', sub { 'A' });
 
-        $m2 = Test::MockModule->new('MooseMulti::Local');
+        $m2 = Test::MockModule->new('MooseMulti::Local', distinct => 1);
         $m2->mock('greet', sub { 'B' });
         # m1 destructed here.
     }
@@ -106,10 +106,10 @@ use Test::MockModule;
 # Independent mocks on different methods: m1 mocks one method, m2 mocks a
 # different method. Each unmock must only affect its own method.
 {
-    my $m1 = Test::MockModule->new('MooseMulti::Local');
+    my $m1 = Test::MockModule->new('MooseMulti::Local', distinct => 1);
     $m1->mock('greet', sub { 'AA' });
 
-    my $m2 = Test::MockModule->new('MooseMulti::Local');
+    my $m2 = Test::MockModule->new('MooseMulti::Local', distinct => 1);
     $m2->mock('other', sub { 'BB' });
 
     is(MooseMulti::Local->greet, 'AA', 'independent: greet from m1');
@@ -141,10 +141,10 @@ use Test::MockModule;
 }
 
 {
-    my $m1 = Test::MockModule->new('MooseMulti::Child');
+    my $m1 = Test::MockModule->new('MooseMulti::Child', distinct => 1);
     $m1->mock('bar', sub { 'child_A' });
 
-    my $m2 = Test::MockModule->new('MooseMulti::Child');
+    my $m2 = Test::MockModule->new('MooseMulti::Child', distinct => 1);
     $m2->mock('bar', sub { 'child_B' });
     is(MooseMulti::Child->bar, 'child_B', 'inherited: m2 mock visible');
 
@@ -174,7 +174,7 @@ use Test::MockModule;
 }
 
 {
-    my $m1 = Test::MockModule->new('MooseMulti::Toggle');
+    my $m1 = Test::MockModule->new('MooseMulti::Toggle', distinct => 1);
     {
         local $SIG{__WARN__} = sub {};   # swallow the immutable carp
         $m1->mock('greet', sub { 'A' });
@@ -183,7 +183,7 @@ use Test::MockModule;
 
     MooseMulti::Toggle->meta->make_mutable;
 
-    my $m2 = Test::MockModule->new('MooseMulti::Toggle');
+    my $m2 = Test::MockModule->new('MooseMulti::Toggle', distinct => 1);
     $m2->mock('greet', sub { 'B' });
     is(MooseMulti::Toggle->greet, 'B', 'toggle: m2 mock active (meta path)');
 
