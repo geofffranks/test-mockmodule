@@ -3,6 +3,7 @@ use warnings;
 use strict qw/subs vars/;
 use vars qw/$VERSION/;
 use Scalar::Util qw/reftype refaddr/;
+use PadWalker ();
 use Carp;
 use SUPER;
 # This is now auto-updated at release time by the github action
@@ -44,6 +45,38 @@ sub _strict_mode {
         }
     }
     return 0;
+}
+
+# GH #83: Detect when a user's mock closure captures the mock object
+# itself ($self). This pattern -- e.g. `$mock->mock('foo', sub { $mock->original('foo')->() })`
+# -- creates a strong reference chain symbol_table -> $code -> captured $self
+# that prevents DESTROY from firing, so the mock leaks past its lexical scope.
+# Diagnose only; never modify the user's coderef. PadWalker pad-slot weakening
+# was investigated and ruled out (pad slots are aliased to the parent's
+# lexical, so weakening from inside _mock immediately kills $mock before the
+# user's test code can run).
+sub _detect_self_capture {
+	my ($self, $code, $name) = @_;
+	return unless ref($code) eq 'CODE';
+	my $self_addr = refaddr($self);
+	my $closed = eval { PadWalker::closed_over($code) };
+	return unless ref $closed eq 'HASH';
+	for my $varname (keys %$closed) {
+		my $slot = $closed->{$varname};
+		next unless ref($slot) eq 'REF';
+		my $val = $$slot;
+		next unless ref($val) && refaddr($val) == $self_addr;
+		carp sprintf(
+			"Test::MockModule: closure for %s::%s captures the mock object (%s); "
+			. "this prevents DESTROY-based unmock and will leak past lexical "
+			. "scope (GH #83). Use Test::MockModule->original_for('%s', '%s') "
+			. "or capture \$mock->original('%s') BEFORE calling mock().",
+			$self->{_package}, $name, $varname,
+			$self->{_package}, $name, $name,
+		);
+		return;
+	}
+	return;
 }
 
 # Per-sub stack of live mock layers. Each entry:
@@ -169,6 +202,7 @@ sub _mock {
 		my $code = sub { };
 		if (ref $value && reftype $value eq 'CODE') {
 			$code = $value;
+			$self->_detect_self_capture($code, $name);
 		} elsif (defined $value) {
 			$code = sub {$value};
 		}
