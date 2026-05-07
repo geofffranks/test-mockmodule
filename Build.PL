@@ -11,7 +11,9 @@ my $class = Module::Build->subclass(
 	code => <<'CRITIC_ACTION',
 sub ACTION_critic {
 	my $self = shift;
-	require Test::Perl::Critic;
+	eval { require Test::Perl::Critic; 1 }
+		or die "./Build critic requires Test::Perl::Critic. "
+		     . "Install it with: cpanm Test::Perl::Critic\n";
 	Test::Perl::Critic->import(-severity => 'gentle');
 	Test::Perl::Critic::all_critic_ok('lib', 't');
 }
