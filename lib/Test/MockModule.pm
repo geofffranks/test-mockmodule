@@ -2,7 +2,7 @@ package Test::MockModule;
 use warnings;
 use strict qw/subs vars/;
 use vars qw/$VERSION/;
-use Scalar::Util qw/reftype refaddr/;
+use Scalar::Util qw/reftype refaddr weaken/;
 use Carp;
 use SUPER;
 # This is now auto-updated at release time by the github action
@@ -67,6 +67,16 @@ sub _strict_mode {
 #                way as orig, so the bottom-of-stack restore can use the
 #                correct pre-any-mock meta state.
 my %mock_subs;
+
+# Per-package weak registry: keeps the singleton-per-package behavior
+# that was the default prior to v0.181 (and the documented contract for
+# the `$mock->original` from-inside-closure pattern). new() returns
+# the existing object for a package if one is alive; weak ref so a
+# cleanly-destroyed mock releases the slot naturally. Pass
+# `distinct => 1` to opt out and get a fresh object per call (the
+# v0.181+ GH #48 behavior).
+my %singleton;
+
 sub new {
 	my ($class, $package, %args) = @_;
 
@@ -74,6 +84,11 @@ sub new {
 	unless (_valid_package($package)) {
 		$package = 'undef' unless defined $package;
 		croak "Invalid package name $package";
+	}
+
+	if (!$args{distinct} && $singleton{$package}) {
+		TRACE("Reusing singleton MockModule object for $package");
+		return $singleton{$package};
 	}
 
 	unless ($package eq "CORE::GLOBAL" || $package eq 'main' || $args{no_auto} || ${"$package\::VERSION"}) {
@@ -87,6 +102,12 @@ sub new {
 		_package => $package,
 		_mocked  => {},
 	}, $class;
+
+	if (!$args{distinct}) {
+		$singleton{$package} = $self;
+		weaken($singleton{$package});
+	}
+
 	return $self;
 }
 

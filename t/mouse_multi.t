@@ -21,11 +21,11 @@ use Test::MockModule;
 
 # LIFO unmock
 {
-    my $m1 = Test::MockModule->new('MouseMulti::Local');
+    my $m1 = Test::MockModule->new('MouseMulti::Local', distinct => 1);
     $m1->mock('greet', sub { 'A' });
     is(MouseMulti::Local->greet, 'A', 'LIFO: m1 mock active');
 
-    my $m2 = Test::MockModule->new('MouseMulti::Local');
+    my $m2 = Test::MockModule->new('MouseMulti::Local', distinct => 1);
     $m2->mock('greet', sub { 'B' });
     is(MouseMulti::Local->greet, 'B', 'LIFO: m2 mock takes over');
 
@@ -41,10 +41,10 @@ use Test::MockModule;
 
 # Non-LIFO unmock (the case the singleton previously hid)
 {
-    my $m1 = Test::MockModule->new('MouseMulti::Local');
+    my $m1 = Test::MockModule->new('MouseMulti::Local', distinct => 1);
     $m1->mock('greet', sub { 'A' });
 
-    my $m2 = Test::MockModule->new('MouseMulti::Local');
+    my $m2 = Test::MockModule->new('MouseMulti::Local', distinct => 1);
     $m2->mock('greet', sub { 'B' });
     is(MouseMulti::Local->greet, 'B', 'non-LIFO: m2 active');
 
@@ -59,10 +59,10 @@ use Test::MockModule;
 
 # Non-top re-mock + mid-stack unmock
 {
-    my $m1 = Test::MockModule->new('MouseMulti::Local');
+    my $m1 = Test::MockModule->new('MouseMulti::Local', distinct => 1);
     $m1->mock('greet', sub { 'A' });
 
-    my $m2 = Test::MockModule->new('MouseMulti::Local');
+    my $m2 = Test::MockModule->new('MouseMulti::Local', distinct => 1);
     $m2->mock('greet', sub { 'B' });
 
     $m1->mock('greet', sub { 'C' });
@@ -82,10 +82,10 @@ use Test::MockModule;
 {
     my $m2;
     {
-        my $m1 = Test::MockModule->new('MouseMulti::Local');
+        my $m1 = Test::MockModule->new('MouseMulti::Local', distinct => 1);
         $m1->mock('greet', sub { 'A' });
 
-        $m2 = Test::MockModule->new('MouseMulti::Local');
+        $m2 = Test::MockModule->new('MouseMulti::Local', distinct => 1);
         $m2->mock('greet', sub { 'B' });
         # m1 destructed here.
     }
@@ -98,10 +98,10 @@ use Test::MockModule;
 
 # Independent methods
 {
-    my $m1 = Test::MockModule->new('MouseMulti::Local');
+    my $m1 = Test::MockModule->new('MouseMulti::Local', distinct => 1);
     $m1->mock('greet', sub { 'AA' });
 
-    my $m2 = Test::MockModule->new('MouseMulti::Local');
+    my $m2 = Test::MockModule->new('MouseMulti::Local', distinct => 1);
     $m2->mock('other', sub { 'BB' });
 
     is(MouseMulti::Local->greet, 'AA', 'independent: greet from m1');
@@ -131,10 +131,10 @@ use Test::MockModule;
 }
 
 {
-    my $m1 = Test::MockModule->new('MouseMulti::Child');
+    my $m1 = Test::MockModule->new('MouseMulti::Child', distinct => 1);
     $m1->mock('bar', sub { 'child_A' });
 
-    my $m2 = Test::MockModule->new('MouseMulti::Child');
+    my $m2 = Test::MockModule->new('MouseMulti::Child', distinct => 1);
     $m2->mock('bar', sub { 'child_B' });
     is(MouseMulti::Child->bar, 'child_B', 'inherited: m2 mock visible');
 
@@ -159,7 +159,7 @@ use Test::MockModule;
 }
 
 {
-    my $m1 = Test::MockModule->new('MouseMulti::Toggle');
+    my $m1 = Test::MockModule->new('MouseMulti::Toggle', distinct => 1);
     {
         local $SIG{__WARN__} = sub {};   # swallow the immutable carp
         $m1->mock('greet', sub { 'A' });
@@ -168,7 +168,7 @@ use Test::MockModule;
 
     MouseMulti::Toggle->meta->make_mutable;
 
-    my $m2 = Test::MockModule->new('MouseMulti::Toggle');
+    my $m2 = Test::MockModule->new('MouseMulti::Toggle', distinct => 1);
     $m2->mock('greet', sub { 'B' });
     is(MouseMulti::Toggle->greet, 'B', 'toggle: m2 mock active (meta path)');
 
