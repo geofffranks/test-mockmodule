@@ -4,10 +4,10 @@ use strict;
 use Test::More;
 use Test::MockModule;
 
-package Tgt;
+package Tgt; ## no critic (Modules::RequireFilenameMatchesPackage)
 our $VERSION = 1;
 sub greet { 'hello' }
-package main;
+package main; ## no critic (Modules::RequireFilenameMatchesPackage)
 
 # 1. The buggy pattern: closure captures $mock to call ->original
 {

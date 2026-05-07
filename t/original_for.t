@@ -5,11 +5,11 @@ use Test::More;
 use Test::MockModule;
 use Scalar::Util qw(refaddr);
 
-package Tgt::OriginalFor;
+package Tgt::OriginalFor; ## no critic (Modules::RequireFilenameMatchesPackage)
 our $VERSION = 1;
 sub greet { 'hello' }
 sub other { 'other' }
-package main;
+package main; ## no critic (Modules::RequireFilenameMatchesPackage)
 
 # 1. Returns the actual sub when not mocked
 {

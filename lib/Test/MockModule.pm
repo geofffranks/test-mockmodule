@@ -492,7 +492,7 @@ sub original_for {
 	}
 	no strict 'refs'; ## no critic (TestingAndDebugging::ProhibitNoStrict)
 	return \&$sub_name if defined &{$sub_name};
-	return undef;
+	return;
 }
 
 sub unmock {

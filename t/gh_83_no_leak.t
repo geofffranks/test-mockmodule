@@ -12,7 +12,7 @@ use Scalar::Util qw(refaddr);
 
 sub make_pkg {
     my ($pkg) = @_;
-    no strict 'refs';
+    no strict 'refs'; ## no critic (TestingAndDebugging::ProhibitNoStrict)
     *{"${pkg}::greet"} = sub { 'hello' };
     *{"${pkg}::other"} = sub { 'other' };
     *{"${pkg}::plain"} = sub { 'plain' };
@@ -20,7 +20,7 @@ sub make_pkg {
 
 sub installed_code {
     my ($pkg, $name) = @_;
-    no strict 'refs';
+    no strict 'refs'; ## no critic (TestingAndDebugging::ProhibitNoStrict)
     return defined &{"${pkg}::${name}"} ? \&{"${pkg}::${name}"} : undef;
 }
 
@@ -293,7 +293,7 @@ subtest 'V14: define() with original_for' => sub {
     is(scalar(@errors), 0, "no errors from define() leaks: @errors");
     is_deeply \@results, ['new_d1', 'new_d2'],
         'define() each iter sees fresh mock';
-    no strict 'refs';
+    no strict 'refs'; ## no critic (TestingAndDebugging::ProhibitNoStrict)
     ok(!defined &{"Tgt_V14::brandnew"},
         'define()d sub removed after scope');
 };

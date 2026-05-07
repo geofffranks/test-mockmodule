@@ -5,10 +5,10 @@ use Test::More;
 use Test::MockModule;
 use Scalar::Util qw(refaddr);
 
-package Tgt::SingletonOptIn;
+package Tgt::SingletonOptIn; ## no critic (Modules::RequireFilenameMatchesPackage)
 our $VERSION = 1;
 sub greet { 'hello' }
-package main;
+package main; ## no critic (Modules::RequireFilenameMatchesPackage)
 
 # 1. Default behavior unchanged: distinct objects per call (GH #48)
 {
