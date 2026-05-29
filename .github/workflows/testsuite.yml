@@ -28,12 +28,20 @@ jobs:
       # Build.PL. cpanm honors configure_requires automatically, so
       # Module::Build gets pulled in before perl Build.PL runs.
       # Single source of truth -- adding a new dep to Build.PL picks
-      # up here without a workflow edit. Test::Perl::Critic is an
-      # author-only dep used by t/author-perlcritic.t; installed
-      # explicitly so the lint test runs in CI under AUTHOR_TESTING=1.
+      # up here without a workflow edit.
+      #
+      # --with-recommends pulls the optional Moose/Mouse/Class::Load/
+      # Test::Exception deps (declared as `recommends` in Build.PL, GH
+      # #90). Without it the t/moose_*.t and t/mouse_*.t MOP-integration
+      # tests would silently skip_all and CI would stop exercising the
+      # GH #55 meta-class code paths.
+      #
+      # Test::Perl::Critic is an author-only dep used by
+      # t/author-perlcritic.t; installed explicitly so the lint test
+      # runs in CI under AUTHOR_TESTING=1.
       - name: install dependencies
         run: |
-          cpanm --installdeps --notest .
+          cpanm --with-recommends --installdeps --notest .
           cpanm --notest Test::Perl::Critic Perl::Critic
       - run: perl Build.PL
       - run: ./Build
@@ -76,10 +84,13 @@ jobs:
       - run: perl -V
       # perldocker/perl-tester images ship with cpanm + Module::Build
       # preinstalled, so no bootstrap step needed. Same `cpanm
-      # --installdeps` pattern as the ubuntu job; reads Build.PL
-      # directly. Avoids dep-list duplication between workflow + Build.PL.
+      # --with-recommends --installdeps` pattern as the ubuntu job;
+      # reads Build.PL directly. Avoids dep-list duplication between
+      # workflow + Build.PL. --with-recommends ensures the optional
+      # Moose/Mouse test deps (GH #90) install so the MOP-integration
+      # tests run instead of skipping.
       - name: install dependencies
-        run: cpanm --installdeps --notest .
+        run: cpanm --with-recommends --installdeps --notest .
       - run: perl Build.PL
       - run: ./Build
       - run: ./Build test
