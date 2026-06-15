@@ -94,3 +94,60 @@ jobs:
       - run: perl Build.PL
       - run: ./Build
       - run: ./Build test
+
+  # Exercises every optional-OO-dependency permutation -- the full
+  # {Moo, Moose, Mouse} cross-product (8 profiles) -- so each OO system is
+  # tested in isolation and in combination. Uses a clean setup-perl Perl
+  # (NOT the perl-tester container, which preloads Moose and would defeat the
+  # `none`/`moo`/`mouse` profiles) and installs each profile's modules
+  # explicitly (no --with-recommends). The `moo` profile -- Moo present, Moose
+  # absent -- is the configuration that reproduces GH #93. Support deps are
+  # paired with the systems whose tests need them: Class::Load + Test::Exception
+  # for the Moose tests (t/moose_around.t needs Class::Load), Test::Exception
+  # for t/mouse_basic.t. Tests for an absent system skip_all, so a profile only
+  # installs what it actually exercises.
+  oo-deps:
+    name: oo-deps (${{ matrix.profile.name }})
+    env:
+      PERL_USE_UNSAFE_INC: 0
+      AUTOMATED_TESTING: 1
+
+    runs-on: ubuntu-latest
+
+    needs: [ubuntu]
+
+    strategy:
+      fail-fast: false
+      matrix:
+        profile:
+          - name: none
+            install: ""
+          - name: moo
+            install: "Moo"
+          - name: moose
+            install: "Moose Class::Load Test::Exception"
+          - name: mouse
+            install: "Mouse Test::Exception"
+          - name: moo+moose
+            install: "Moo Moose Class::Load Test::Exception"
+          - name: moo+mouse
+            install: "Moo Mouse Test::Exception"
+          - name: moose+mouse
+            install: "Moose Mouse Class::Load Test::Exception"
+          - name: all
+            install: "Moo Moose Mouse Class::Load Test::Exception"
+
+    steps:
+      - uses: actions/checkout@v6
+      - uses: shogo82148/actions-setup-perl@v1
+      - run: perl -V
+      # Required deps only -- NO --with-recommends, so the optional OO modules
+      # are controlled per-profile below.
+      - name: install required dependencies
+        run: cpanm --installdeps --notest .
+      - name: install OO profile dependencies
+        if: matrix.profile.install != ''
+        run: cpanm --notest ${{ matrix.profile.install }}
+      - run: perl Build.PL
+      - run: ./Build
+      - run: ./Build test
