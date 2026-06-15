@@ -6,11 +6,6 @@
 
 **Full Changelog**: https://github.com/geofffranks/test-mockmodule/compare/0.185.2...0.185.3
 
-## Unreleased
-
-## What's Changed
-* fix(GH #93): don't require Moose when mocking a Moo class — `_meta_for` no longer triggers Moo's lazy Moose metaclass inflation
-
 ## 0.185.2 — 2026-05-29
 
 ## What's Changed
